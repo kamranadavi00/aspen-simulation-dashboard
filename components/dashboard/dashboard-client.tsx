@@ -7,6 +7,7 @@ import { KPICards } from './kpi-cards'
 import { DataTable } from './data-table'
 import { Charts } from './charts'
 import { PDFExport } from './pdf-export'
+import { ChatAssistant } from './chat-assistant'
 import type { AspenRow } from '@/lib/types'
 
 export function DashboardClient() {
@@ -131,6 +132,8 @@ export function DashboardClient() {
           <p>Aspen Process Analytics Dashboard &mdash; Chemical Engineering Simulation Analysis Tool</p>
         </footer>
       </main>
+
+      <ChatAssistant data={data} fileName={fileName} />
     </div>
   )
 }
