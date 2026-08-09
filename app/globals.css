@@ -113,3 +113,116 @@
 ::-webkit-scrollbar-thumb:hover {
   background: oklch(0.45 0.08 220);
 }
+
+.markdown-render {
+  font-size: 11px;
+  line-height: 1.55;
+  color: inherit;
+}
+
+.markdown-render > :first-child {
+  margin-top: 0;
+}
+
+.markdown-render > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-render h1,
+.markdown-render h2,
+.markdown-render h3,
+.markdown-render h4 {
+  margin: 0.55rem 0 0.35rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--foreground);
+}
+
+.markdown-render h1 { font-size: 1.18rem; }
+.markdown-render h2 { font-size: 1.02rem; }
+.markdown-render h3 { font-size: 0.92rem; }
+.markdown-render h4 { font-size: 0.84rem; }
+
+.markdown-render p {
+  margin: 0.34rem 0;
+}
+
+.markdown-render strong {
+  font-weight: 800;
+  color: var(--foreground);
+}
+
+.markdown-render em {
+  font-style: italic;
+}
+
+.markdown-render ul,
+.markdown-render ol {
+  margin: 0.34rem 0 0.42rem;
+  padding-left: 1.05rem;
+}
+
+.markdown-render li {
+  margin: 0.16rem 0;
+}
+
+.markdown-render a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.markdown-render code {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.89em;
+  padding: 0.12rem 0.28rem;
+  border-radius: 0.22rem;
+  background: oklch(0.20 0.03 240);
+  color: oklch(0.88 0.03 210);
+}
+
+.markdown-render pre {
+  overflow-x: auto;
+  margin: 0.55rem 0;
+  border-radius: 0.45rem;
+  border: 1px solid var(--border);
+  background: oklch(0.16 0.02 240);
+  padding: 0.55rem;
+}
+
+.markdown-render pre code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+}
+
+.markdown-render table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.55rem 0;
+  font-size: 10px;
+}
+
+.markdown-render th,
+.markdown-render td {
+  border: 1px solid var(--border);
+  padding: 0.30rem 0.38rem;
+  text-align: left;
+}
+
+.markdown-render th {
+  background: oklch(0.18 0.03 250);
+}
+
+.markdown-render blockquote {
+  margin: 0.56rem 0;
+  padding: 0.42rem 0.55rem;
+  border-left: 3px solid var(--primary);
+  background: oklch(0.18 0.03 250);
+  color: oklch(0.75 0.04 230);
+}
+
+.markdown-render hr {
+  border-color: var(--border);
+  margin: 0.62rem 0;
+}
+

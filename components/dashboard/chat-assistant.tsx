@@ -1,6 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import {
   Bot,
   MessageCircle,
@@ -81,7 +83,26 @@ export function ChatAssistant({ data, fileName }: ChatAssistantProps) {
   ])
   const [input, setInput] = useState('')
 
+  const chatContainerRef = useRef<HTMLDivElement | null>(null)
+
   const summary = useMemo(() => computeDatasetSummary(data, fileName), [data, fileName])
+
+  function scrollToBottom() {
+    if (!chatContainerRef.current) return
+
+    const element = chatContainerRef.current
+    element.scrollTo({
+      top: element.scrollHeight,
+      behavior: 'smooth',
+    })
+  }
+
+  useEffect(() => {
+    if (isOpen) {
+      const frame = window.requestAnimationFrame(scrollToBottom)
+      return () => window.cancelAnimationFrame(frame)
+    }
+  }, [isOpen, messages])
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
@@ -240,7 +261,7 @@ export function ChatAssistant({ data, fileName }: ChatAssistantProps) {
     <>
       <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-2">
         {isOpen && (
-          <section className="w-[min(92vw,390px)] overflow-hidden rounded-2xl border border-border bg-background shadow-2xl shadow-black/30">
+          <section className="w-[min(92vw,390px)] h-[min(78vh,720px)] max-h-[720px] min-h-[520px] sm:h-[660px] sm:max-h-[680px] md:h-[720px] md:max-h-[760px] flex flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl shadow-black/30">
             <div className="flex items-center justify-between border-b border-border bg-card px-4 py-3">
               <div className="flex items-center gap-2">
                 <div className="flex size-8 items-center justify-center rounded-full border border-primary/30 bg-primary/10">
@@ -259,7 +280,7 @@ export function ChatAssistant({ data, fileName }: ChatAssistantProps) {
               </Button>
             </div>
 
-            <div className="max-h-[360px] min-h-[260px] overflow-y-auto bg-background px-4 py-3">
+            <div ref={chatContainerRef} className="flex-1 min-h-0 overflow-y-auto bg-background px-4 py-3">
               <div className="flex flex-col gap-3">
                 {messages.map((message) => (
                   <div key={message.id} className={cn('flex', message.role === 'user' ? 'justify-end' : 'justify-start')}>
@@ -271,7 +292,13 @@ export function ChatAssistant({ data, fileName }: ChatAssistantProps) {
                           : 'border border-border bg-muted text-foreground rounded-bl-md'
                       )}
                     >
-                      {message.content}
+                      {message.role === 'assistant' ? (
+                        <div className="markdown-render markdown-render-assistant prose prose-invert prose-sm max-w-none">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content || '...'}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <span>{message.content}</span>
+                      )}
                     </div>
                   </div>
                 ))}
