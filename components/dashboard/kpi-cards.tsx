@@ -3,14 +3,10 @@
 import { useMemo } from 'react'
 import {
   TrendingUp,
-  Zap,
-  Thermometer,
-  Gauge,
-  FlaskConical,
   Star,
 } from 'lucide-react'
 import type { AspenRow, KPIData } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { cn, toFiniteNumber } from '@/lib/utils'
 import { generateKPIs, type DatasetSchema } from '@/lib/analysis'
 
 interface KPICardsProps {
@@ -35,17 +31,17 @@ function computeKPIs(data: AspenRow[]): KPIData {
   let minEnergyRow = data[0]
 
   for (const row of data) {
-    if (row.Yield > maxYieldRow.Yield) maxYieldRow = row
-    if (row.Conversion > maxConvRow.Conversion) maxConvRow = row
-    if (row.Energy < minEnergyRow.Energy) minEnergyRow = row
+    if ((toFiniteNumber(row.Yield) ?? Number.NEGATIVE_INFINITY) > (toFiniteNumber(maxYieldRow.Yield) ?? Number.NEGATIVE_INFINITY)) maxYieldRow = row
+    if ((toFiniteNumber(row.Conversion) ?? Number.NEGATIVE_INFINITY) > (toFiniteNumber(maxConvRow.Conversion) ?? Number.NEGATIVE_INFINITY)) maxConvRow = row
+    if ((toFiniteNumber(row.Energy) ?? Number.POSITIVE_INFINITY) < (toFiniteNumber(minEnergyRow.Energy) ?? Number.POSITIVE_INFINITY)) minEnergyRow = row
   }
 
   return {
-    maxYield: maxYieldRow.Yield,
-    maxConversion: maxConvRow.Conversion,
-    bestTemperature: maxYieldRow.Temperature,
-    bestPressure: maxYieldRow.Pressure,
-    minEnergy: minEnergyRow.Energy,
+    maxYield: toFiniteNumber(maxYieldRow.Yield) ?? 0,
+    maxConversion: toFiniteNumber(maxConvRow.Conversion) ?? 0,
+    bestTemperature: toFiniteNumber(maxYieldRow.Temperature) ?? 0,
+    bestPressure: toFiniteNumber(maxYieldRow.Pressure) ?? 0,
+    minEnergy: toFiniteNumber(minEnergyRow.Energy) ?? 0,
     bestOperatingPoint: maxYieldRow,
   }
 }
@@ -109,13 +105,15 @@ interface BestPointCardProps {
 }
 
 function BestPointCard({ point }: BestPointCardProps) {
+  const formatNumber = (value: unknown, digits: number) => toFiniteNumber(value)?.toFixed(digits) ?? '—'
+
   const fields: { label: string; value: string; unit: string }[] = [
-    { label: 'Temperature', value: point.Temperature.toFixed(1), unit: '°C' },
-    { label: 'Pressure', value: point.Pressure.toFixed(2), unit: 'bar' },
-    { label: 'Feed Rate', value: point.Feed_Rate.toFixed(2), unit: 'kmol/h' },
-    { label: 'Yield', value: point.Yield.toFixed(2), unit: '%' },
-    { label: 'Conversion', value: point.Conversion.toFixed(2), unit: '%' },
-    { label: 'Energy', value: point.Energy.toFixed(2), unit: 'GJ/h' },
+    { label: 'Temperature', value: formatNumber(point.Temperature, 1), unit: '°C' },
+    { label: 'Pressure', value: formatNumber(point.Pressure, 2), unit: 'bar' },
+    { label: 'Feed Rate', value: formatNumber(point.Feed_Rate, 2), unit: 'kmol/h' },
+    { label: 'Yield', value: formatNumber(point.Yield, 2), unit: '%' },
+    { label: 'Conversion', value: formatNumber(point.Conversion, 2), unit: '%' },
+    { label: 'Energy', value: formatNumber(point.Energy, 2), unit: 'GJ/h' },
   ]
 
   return (

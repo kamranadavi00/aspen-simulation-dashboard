@@ -1,4 +1,5 @@
 import type { AspenRow } from '@/lib/types'
+import { toFiniteNumber } from '@/lib/utils'
 
 export type ColumnKind = 'numeric' | 'categorical' | 'date' | 'boolean' | 'mixed' | 'unknown'
 
@@ -63,17 +64,6 @@ function normalizeColumnName(name: string) {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_')
 }
 
-function numericValueFromCell(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) return value
-  if (typeof value === 'string') {
-    const raw = value.trim().replace(/,/g, '')
-    if (!raw) return null
-    const parsed = Number(raw)
-    return Number.isFinite(parsed) ? parsed : null
-  }
-  return null
-}
-
 function isLikelyDate(value: unknown): boolean {
   if (typeof value !== 'string') return false
   const cleaned = value.trim()
@@ -111,7 +101,7 @@ function standardDeviation(values: number[]) {
 }
 
 export function analyzeNumericColumn(rows: AspenRow[], column: string): ColumnStats {
-  const values = rows.map((row) => numericValueFromCell(row[column])).filter((value): value is number => typeof value === 'number')
+  const values = rows.map((row) => toFiniteNumber(row[column])).filter((value): value is number => typeof value === 'number')
 
   if (!values.length) {
     return {}
@@ -154,7 +144,7 @@ export function inferDatasetSchema(rows: AspenRow[]): DatasetSchema {
     const samples = rows.map((row) => row[key]).filter((value) => value !== null && typeof value !== 'undefined' && String(value).trim() !== '')
     const nonEmptyValues = samples.map((value) => String(value).trim())
 
-    const numericSamples = samples.map((value) => numericValueFromCell(value)).filter((value): value is number => value !== null)
+    const numericSamples = samples.map((value) => toFiniteNumber(value)).filter((value): value is number => value !== null)
 
     const boolSamples = samples.filter(isLikelyBoolean)
     const dateSamples = samples.filter(isLikelyDate)
@@ -259,7 +249,7 @@ export function generateKPIs(rows: AspenRow[], schema: DatasetSchema): KPIValue[
   const numeric = schema.numericColumns
 
   for (const column of numeric) {
-    const values = rows.map((row) => numericValueFromCell(row[column])).filter((value): value is number => value !== null)
+    const values = rows.map((row) => toFiniteNumber(row[column])).filter((value): value is number => value !== null)
     if (!values.length) continue
 
     const stats = analyzeNumericColumn(rows, column)
@@ -286,15 +276,13 @@ export function generateKPIs(rows: AspenRow[], schema: DatasetSchema): KPIValue[
     }
 
     if (semantic.includes('temperature')) {
-      const temperatureRows = rows.map((row) => ({ row, value: numericValueFromCell(row[column]) })).filter((item) => item.value !== null)
-      const best = temperatureRows.reduce((best, item) => {
-        if (item.value === null) return best
-        const row = best.row
-        if (!row || (item.row as any).Yield > (row as any).Yield) return item
-        return best
-      }, { row: null as AspenRow | null, value: null as number | null })
+      const bestRow = rows.reduce((best, row) => {
+        const rowYield = toFiniteNumber(row.Yield) ?? Number.NEGATIVE_INFINITY
+        const bestYield = toFiniteNumber(best.Yield) ?? Number.NEGATIVE_INFINITY
+        return rowYield > bestYield ? row : best
+      }, rows[0])
 
-      kpis.push({ name: column, label: 'Best Temperature', value: best.row?.Temperature ?? rows[0].Temperature ?? 0, unit: '°C', description: 'Temperature associated with the best observed operating point' })
+      kpis.push({ name: column, label: 'Best Temperature', value: toFiniteNumber(bestRow[column]) ?? mean, unit: '°C', description: 'Temperature associated with the best observed operating point' })
     }
   }
 
@@ -334,9 +322,9 @@ export function executeDataQuery(rows: AspenRow[], schema: DatasetSchema, questi
       return { kind: 'stats', title: 'No numeric question target', description: 'No numeric columns are available for this question.', message: 'The uploaded dataset does not expose a numeric target column for this analysis.' }
     }
 
-    const values = rows.map((row) => numericValueFromCell(row[target])).filter((value): value is number => value !== null)
+    const values = rows.map((row) => toFiniteNumber(row[target])).filter((value): value is number => value !== null)
     const max = Math.max(...values)
-    const matchingRows = rows.filter((row) => numericValueFromCell(row[target]) === max)
+    const matchingRows = rows.filter((row) => toFiniteNumber(row[target]) === max)
 
     return {
       kind: 'row',
@@ -355,9 +343,9 @@ export function executeDataQuery(rows: AspenRow[], schema: DatasetSchema, questi
       return { kind: 'stats', title: 'No numeric question target', description: 'No numeric columns are available for this question.', message: 'The uploaded dataset does not expose a numeric target column for this analysis.' }
     }
 
-    const values = rows.map((row) => numericValueFromCell(row[target])).filter((value): value is number => value !== null)
+    const values = rows.map((row) => toFiniteNumber(row[target])).filter((value): value is number => value !== null)
     const min = Math.min(...values)
-    const matchingRows = rows.filter((row) => numericValueFromCell(row[target]) === min)
+    const matchingRows = rows.filter((row) => toFiniteNumber(row[target]) === min)
 
     return {
       kind: 'row',
@@ -376,7 +364,7 @@ export function executeDataQuery(rows: AspenRow[], schema: DatasetSchema, questi
       return { kind: 'stats', title: 'No numeric question target', description: 'No numeric columns are available for this question.', message: 'The uploaded dataset does not expose a numeric target column for this analysis.' }
     }
 
-    const values = rows.map((row) => numericValueFromCell(row[target])).filter((value): value is number => value !== null)
+    const values = rows.map((row) => toFiniteNumber(row[target])).filter((value): value is number => value !== null)
     const avg = values.reduce((sum, value) => sum + value, 0) / Math.max(values.length, 1)
 
     return {

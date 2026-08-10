@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { AspenRow } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { cn, toFiniteNumber } from '@/lib/utils'
 
 interface ChatAssistantProps {
   data: AspenRow[]
@@ -26,9 +26,9 @@ interface ChatMessage {
 }
 
 function average(rows: AspenRow[], key: keyof AspenRow) {
-  if (!rows.length) return 0
-  const total = rows.reduce((acc, row) => acc + Number(row[key] ?? 0), 0)
-  return total / rows.length
+  const values = rows.map((row) => toFiniteNumber(row[key])).filter((value): value is number => value !== null)
+  if (!values.length) return 0
+  return values.reduce((total, value) => total + value, 0) / values.length
 }
 
 function computeDatasetSummary(data: AspenRow[], fileName: string | null) {
@@ -50,7 +50,18 @@ function computeDatasetSummary(data: AspenRow[], fileName: string | null) {
     }
   }
 
-  const bestYieldRun = data.reduce((best, row) => (row.Yield > best.Yield ? row : best), data[0])
+  const numericValues = (key: keyof AspenRow) =>
+    data.map((row) => toFiniteNumber(row[key])).filter((value): value is number => value !== null)
+
+  const yields = numericValues('Yield')
+  const conversions = numericValues('Conversion')
+  const energy = numericValues('Energy')
+  const temperatures = numericValues('Temperature')
+  const pressures = numericValues('Pressure')
+
+  const bestYieldRun = data.reduce((best, row) =>
+    (toFiniteNumber(row.Yield) ?? Number.NEGATIVE_INFINITY) > (toFiniteNumber(best.Yield) ?? Number.NEGATIVE_INFINITY) ? row : best
+  , data[0])
 
   const columns = Object.keys(data[0] ?? {})
 
@@ -61,11 +72,11 @@ function computeDatasetSummary(data: AspenRow[], fileName: string | null) {
     avgConversion: average(data, 'Conversion'),
     avgEnergy: average(data, 'Energy'),
     avgFeedRate: average(data, 'Feed_Rate'),
-    maxYield: Math.max(...data.map((row) => row.Yield)),
-    maxConversion: Math.max(...data.map((row) => row.Conversion)),
-    minEnergy: Math.min(...data.map((row) => row.Energy)),
-    temperatureRange: `${Math.min(...data.map((row) => row.Temperature))} - ${Math.max(...data.map((row) => row.Temperature))} °C`,
-    pressureRange: `${Math.min(...data.map((row) => row.Pressure))} - ${Math.max(...data.map((row) => row.Pressure))} bar`,
+    maxYield: yields.length ? Math.max(...yields) : 0,
+    maxConversion: conversions.length ? Math.max(...conversions) : 0,
+    minEnergy: energy.length ? Math.min(...energy) : 0,
+    temperatureRange: temperatures.length ? `${Math.min(...temperatures)} - ${Math.max(...temperatures)} °C` : 'N/A',
+    pressureRange: pressures.length ? `${Math.min(...pressures)} - ${Math.max(...pressures)} bar` : 'N/A',
     bestYieldRun,
     fileName,
   }

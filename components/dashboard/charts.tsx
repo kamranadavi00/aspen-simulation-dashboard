@@ -18,7 +18,7 @@ import {
   ZAxis,
 } from 'recharts'
 import type { AspenRow } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { cn, toFiniteNumber } from '@/lib/utils'
 import { generateChartRecommendations, type DatasetSchema } from '@/lib/analysis'
 
 // Chart color palette (matches design tokens)
@@ -72,11 +72,6 @@ interface ChartsProps {
   schema: DatasetSchema
 }
 
-// Sort data by a key for better line charts
-function sortedBy(data: AspenRow[], key: keyof AspenRow) {
-  return [...data].sort((a, b) => (a[key] as number) - (b[key] as number))
-}
-
 // Heatmap component
 interface HeatmapProps {
   data: AspenRow[]
@@ -91,34 +86,37 @@ interface BuilderChartConfig {
   type: ChartType
 }
 
-function numericValueFromCell(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) return value
-  if (typeof value === 'string') {
-    const parsed = Number(value.replace(/,/g, ''))
-    return Number.isFinite(parsed) ? parsed : null
-  }
-  return null
-}
-
 function Heatmap({ data }: HeatmapProps) {
   const [hovered, setHovered] = useState<{ t: number; p: number; y: number } | null>(null)
 
   const { cells, temps, pressures, minYield, maxYield } = useMemo(() => {
-    const tempSet = [...new Set(data.map((d) => d.Temperature))].sort((a, b) => a - b)
-    const pressSet = [...new Set(data.map((d) => d.Pressure))].sort((a, b) => a - b)
+    const points: Array<{ temperature: number; pressure: number; yieldValue: number }> = []
+
+    for (const row of data) {
+      const temperature = toFiniteNumber(row.Temperature)
+      const pressure = toFiniteNumber(row.Pressure)
+      const yieldValue = toFiniteNumber(row.Yield)
+
+      if (temperature !== null && pressure !== null && yieldValue !== null) {
+        points.push({ temperature, pressure, yieldValue })
+      }
+    }
+
+    const tempSet = [...new Set(points.map((point) => point.temperature))].sort((a, b) => a - b)
+    const pressSet = [...new Set(points.map((point) => point.pressure))].sort((a, b) => a - b)
 
     const gridMap = new Map<string, number>()
-    for (const row of data) {
-      const key = `${row.Temperature}:${row.Pressure}`
+    for (const point of points) {
+      const key = `${point.temperature}:${point.pressure}`
       const existing = gridMap.get(key)
-      if (existing === undefined || row.Yield > existing) {
-        gridMap.set(key, row.Yield)
+      if (existing === undefined || point.yieldValue > existing) {
+        gridMap.set(key, point.yieldValue)
       }
     }
 
     const allYields = [...gridMap.values()]
-    const minY = Math.min(...allYields)
-    const maxY = Math.max(...allYields)
+    const minY = allYields.length ? Math.min(...allYields) : 0
+    const maxY = allYields.length ? Math.max(...allYields) : 0
 
     const cells = pressSet.map((p) =>
       tempSet.map((t) => ({ t, p, y: gridMap.get(`${t}:${p}`) ?? null }))
@@ -260,10 +258,6 @@ function Heatmap({ data }: HeatmapProps) {
 export function Charts({ data, schema }: ChartsProps) {
   const numericColumns = schema?.numericColumns ?? []
   const firstNumeric = numericColumns[0]
-  const secondNumeric = numericColumns[1]
-  const byTemp = useMemo(() => sortedBy(data, firstNumeric || 'Temperature' as keyof AspenRow), [data, firstNumeric])
-  const byPressure = useMemo(() => sortedBy(data, secondNumeric || 'Pressure' as keyof AspenRow), [data, secondNumeric])
-  const byFeedRate = useMemo(() => sortedBy(data, firstNumeric || 'Yield' as keyof AspenRow), [data, firstNumeric])
 
   const [chartConfigs, setChartConfigs] = useState<BuilderChartConfig[]>([])
   const [builderX, setBuilderX] = useState<string>('')
@@ -274,7 +268,7 @@ export function Charts({ data, schema }: ChartsProps) {
     if (!data.length) return
 
     const recommendations = generateChartRecommendations(data, schema.columns)
-    const initial = recommendations.length
+    const initial: BuilderChartConfig[] = recommendations.length
       ? recommendations.map((c, index) => ({
           id: `${c.title}-${index}-${crypto.randomUUID()}`,
           x: c.x,
