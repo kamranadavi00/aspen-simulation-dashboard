@@ -75,13 +75,13 @@ export function DashboardClient() {
               {/* KPIs */}
               <KPICards data={data} schema={schema ?? inferDatasetSchema(data)} />
 
-              {/* Data Table */}
-              <DataTable data={data} />
-
               {/* Charts */}
               <div ref={chartsRef}>
                 <Charts data={data} schema={schema ?? inferDatasetSchema(data)} />
               </div>
+
+              {/* Data Table */}
+              <DataTable data={data} />
             </>
           ) : (
             /* Empty state */
