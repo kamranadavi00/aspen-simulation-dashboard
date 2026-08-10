@@ -114,6 +114,42 @@
   background: oklch(0.45 0.08 220);
 }
 
+.chat-assistant-loading-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.24rem;
+  min-height: 1.15rem;
+  padding: 0.12rem 0;
+}
+
+.chat-assistant-loading-dot {
+  width: 0.34rem;
+  height: 0.34rem;
+  border-radius: 999px;
+  background: oklch(0.95 0.02 240);
+  border: 1px solid oklch(0.88 0.02 240);
+  animation: assistant-typing-bounce 1.12s ease-in-out infinite;
+}
+
+.chat-assistant-loading-dot:nth-child(2) {
+  animation-delay: 0.12s;
+}
+
+.chat-assistant-loading-dot:nth-child(3) {
+  animation-delay: 0.24s;
+}
+
+@keyframes assistant-typing-bounce {
+  0%, 80%, 100% {
+    opacity: 0.62;
+    transform: translateY(0) scale(0.92);
+  }
+  35% {
+    opacity: 1;
+    transform: translateY(-0.20rem) scale(1.02);
+  }
+}
+
 .markdown-render {
   font-size: 11px;
   line-height: 1.55;

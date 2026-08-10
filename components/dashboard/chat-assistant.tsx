@@ -22,6 +22,7 @@ interface ChatMessage {
   id: string
   role: 'assistant' | 'user'
   content: string
+  loading?: boolean
 }
 
 function average(rows: AspenRow[], key: keyof AspenRow) {
@@ -121,6 +122,7 @@ export function ChatAssistant({ data, fileName }: ChatAssistantProps) {
       id: streamingAssistantId,
       role: 'assistant',
       content: '',
+      loading: true,
     }
 
     const pendingMessages = [...messages, userMessage]
@@ -151,7 +153,7 @@ export function ChatAssistant({ data, fileName }: ChatAssistantProps) {
         setMessages((current) =>
           current.map((message) =>
             message.id === streamingAssistantId
-              ? { ...message, content: errorText }
+              ? { ...message, content: errorText, loading: false }
               : message
           )
         )
@@ -162,7 +164,7 @@ export function ChatAssistant({ data, fileName }: ChatAssistantProps) {
         setMessages((current) =>
           current.map((message) =>
             message.id === streamingAssistantId
-              ? { ...message, content: 'The model returned an empty response stream.' }
+              ? { ...message, content: 'The model returned an empty response stream.', loading: false }
               : message
           )
         )
@@ -203,7 +205,7 @@ export function ChatAssistant({ data, fileName }: ChatAssistantProps) {
               setMessages((current) =>
                 current.map((message) =>
                   message.id === streamingAssistantId
-                    ? { ...message, content: `${message.content}${delta}` }
+                    ? { ...message, content: `${message.content}${delta}`, loading: false }
                     : message
                 )
               )
@@ -235,7 +237,7 @@ export function ChatAssistant({ data, fileName }: ChatAssistantProps) {
               setMessages((current) =>
                 current.map((message) =>
                   message.id === streamingAssistantId
-                    ? { ...message, content: `${message.content}${delta}` }
+                    ? { ...message, content: `${message.content}${delta}`, loading: false }
                     : message
                 )
               )
@@ -250,7 +252,7 @@ export function ChatAssistant({ data, fileName }: ChatAssistantProps) {
       setMessages((current) =>
         current.map((message) =>
           message.id === streamingAssistantId
-            ? { ...message, content: `I ran into a stream/network error: ${errorText}` }
+            ? { ...message, content: `I ran into a stream/network error: ${errorText}`, loading: false }
             : message
         )
       )
@@ -293,9 +295,17 @@ export function ChatAssistant({ data, fileName }: ChatAssistantProps) {
                       )}
                     >
                       {message.role === 'assistant' ? (
-                        <div className="markdown-render markdown-render-assistant prose prose-invert prose-sm max-w-none">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content || '...'}</ReactMarkdown>
-                        </div>
+                        message.loading ? (
+                          <div className="chat-assistant-loading-wrap" aria-label="Assistant is typing">
+                            <span className="chat-assistant-loading-dot" />
+                            <span className="chat-assistant-loading-dot" />
+                            <span className="chat-assistant-loading-dot" />
+                          </div>
+                        ) : (
+                          <div className="markdown-render markdown-render-assistant prose prose-invert prose-sm max-w-none">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content || '...'}</ReactMarkdown>
+                          </div>
+                        )
                       ) : (
                         <span>{message.content}</span>
                       )}
