@@ -11,9 +11,11 @@ import {
 } from 'lucide-react'
 import type { AspenRow, KPIData } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { generateKPIs, type DatasetSchema } from '@/lib/analysis'
 
 interface KPICardsProps {
   data: AspenRow[]
+  schema: DatasetSchema
 }
 
 function computeKPIs(data: AspenRow[]): KPIData {
@@ -144,10 +146,13 @@ function BestPointCard({ point }: BestPointCardProps) {
   )
 }
 
-export function KPICards({ data }: KPICardsProps) {
+export function KPICards({ data, schema }: KPICardsProps) {
   const kpis = useMemo(() => computeKPIs(data), [data])
+  const dynamicKpis = useMemo(() => generateKPIs(data, schema), [data, schema])
 
   if (!data.length) return null
+
+  const kpiCards = [...dynamicKpis].slice(0, 5)
 
   return (
     <section aria-label="Key Performance Indicators">
@@ -155,46 +160,17 @@ export function KPICards({ data }: KPICardsProps) {
         Key Performance Indicators
       </h2>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-        <KPICard
-          label="Max Yield"
-          value={kpis.maxYield.toFixed(2)}
-          unit="%"
-          sublabel="Highest yield across all runs"
-          icon={<TrendingUp className="size-4" />}
-          accent="teal"
-        />
-        <KPICard
-          label="Max Conversion"
-          value={kpis.maxConversion.toFixed(2)}
-          unit="%"
-          sublabel="Peak reactant conversion"
-          icon={<FlaskConical className="size-4" />}
-          accent="blue"
-        />
-        <KPICard
-          label="Best Temperature"
-          value={kpis.bestTemperature.toFixed(1)}
-          unit="°C"
-          sublabel="Temperature at max yield"
-          icon={<Thermometer className="size-4" />}
-          accent="red"
-        />
-        <KPICard
-          label="Best Pressure"
-          value={kpis.bestPressure.toFixed(2)}
-          unit="bar"
-          sublabel="Pressure at max yield"
-          icon={<Gauge className="size-4" />}
-          accent="violet"
-        />
-        <KPICard
-          label="Min Energy"
-          value={kpis.minEnergy.toFixed(2)}
-          unit="GJ/h"
-          sublabel="Lowest energy consumption"
-          icon={<Zap className="size-4" />}
-          accent="green"
-        />
+        {kpiCards.map((kpi, index) => (
+          <KPICard
+            key={`${kpi.name}-${index}`}
+            label={kpi.label}
+            value={typeof kpi.value === 'number' ? kpi.value.toFixed(2) : String(kpi.value)}
+            unit={kpi.unit}
+            sublabel={kpi.description}
+            icon={<TrendingUp className="size-4" />}
+            accent={index % 5 === 0 ? 'teal' : index % 5 === 1 ? 'blue' : index % 5 === 2 ? 'red' : index % 5 === 3 ? 'green' : 'violet'}
+          />
+        ))}
         {kpis.bestOperatingPoint && (
           <BestPointCard point={kpis.bestOperatingPoint} />
         )}

@@ -14,7 +14,23 @@ interface CSVUploadProps {
   rowCount: number
 }
 
-const REQUIRED_COLUMNS = ['Temperature', 'Pressure', 'Feed_Rate', 'Yield', 'Conversion', 'Energy']
+function normalizeCell(value: string | undefined): string | number | boolean | null {
+  if (typeof value === 'undefined') return null
+
+  const trimmed = value.trim()
+  if (!trimmed) return null
+
+  if (/^(true|false|yes|no|y|n|1|0)$/i.test(trimmed)) {
+    return /^(true|yes|y|1)$/i.test(trimmed)
+  }
+
+  const numeric = Number(trimmed.replace(/,/g, ''))
+  if (Number.isFinite(numeric) && trimmed !== '') {
+    return numeric
+  }
+
+  return trimmed
+}
 
 export function CSVUpload({ onDataLoaded, hasData, fileName, rowCount }: CSVUploadProps) {
   const [isDragging, setIsDragging] = useState(false)
@@ -49,31 +65,26 @@ export function CSVUpload({ onDataLoaded, hasData, fileName, rowCount }: CSVUplo
           }
 
           const headers = Object.keys(results.data[0] || {})
-          const missingCols = REQUIRED_COLUMNS.filter((col) => !headers.includes(col))
-          if (missingCols.length > 0) {
-            setError(
-              `Missing required columns: ${missingCols.join(', ')}. Expected columns like Run_ID, Temperature, Pressure, Feed_Rate, Yield, Conversion, Energy, etc.`
-            )
+          if (!headers.length) {
+            setError('The CSV file does not expose any columns.')
             setIsLoading(false)
             return
           }
 
-          const parsed: AspenRow[] = results.data.map((row, i) => ({
-            Run_ID: row.Run_ID ?? `RUN-${i + 1}`,
-            Temperature: parseFloat(row.Temperature) || 0,
-            Pressure: parseFloat(row.Pressure) || 0,
-            Feed_Rate: parseFloat(row.Feed_Rate) || 0,
-            Residence_Time: parseFloat(row.Residence_Time) || 0,
-            Catalyst_Loading: parseFloat(row.Catalyst_Loading) || 0,
-            Yield: parseFloat(row.Yield) || 0,
-            Conversion: parseFloat(row.Conversion) || 0,
-            Energy: parseFloat(row.Energy) || 0,
-            Reactor_Duty: parseFloat(row.Reactor_Duty) || 0,
-            Cooling_Duty: parseFloat(row.Cooling_Duty) || 0,
-            Selectivity: parseFloat(row.Selectivity) || 0,
-            Byproduct: parseFloat(row.Byproduct) || 0,
-            Cost_Index: parseFloat(row.Cost_Index) || 0,
-          }))
+          const parsed: AspenRow[] = results.data.map((row, rowIndex) => {
+            const stableRow: AspenRow = {}
+
+            for (const header of headers) {
+              const rawValue = row[header]
+              stableRow[header] = normalizeCell(rawValue)
+            }
+
+            if (!('Run_ID' in stableRow) && !('Run' in stableRow) && !('ID' in stableRow) && !('Sample_ID' in stableRow)) {
+              stableRow.Run_ID = `ROW-${rowIndex + 1}`
+            }
+
+            return stableRow
+          })
 
           onDataLoaded(parsed, file.name)
           setIsLoading(false)
@@ -150,12 +161,9 @@ export function CSVUpload({ onDataLoaded, hasData, fileName, rowCount }: CSVUplo
           </div>
 
           <div className="flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
-            {REQUIRED_COLUMNS.map((col) => (
-              <span key={col} className="rounded-md border border-border bg-muted px-2 py-0.5 font-mono">
-                {col}
-              </span>
-            ))}
-            <span className="rounded-md border border-border bg-muted px-2 py-0.5 font-mono">+ more</span>
+            <span className="rounded-md border border-border bg-muted px-2 py-0.5 font-mono">CSV</span>
+            <span className="rounded-md border border-border bg-muted px-2 py-0.5 font-mono">Dynamic Schema</span>
+            <span className="rounded-md border border-border bg-muted px-2 py-0.5 font-mono">KPI + Charts</span>
           </div>
 
           {error && (

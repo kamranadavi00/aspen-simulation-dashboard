@@ -9,16 +9,20 @@ import { Charts } from './charts'
 import { PDFExport } from './pdf-export'
 import { ChatAssistant } from './chat-assistant'
 import type { AspenRow } from '@/lib/types'
+import { inferDatasetSchema, type DatasetSchema } from '@/lib/analysis'
 
 export function DashboardClient() {
   const [data, setData] = useState<AspenRow[]>([])
+  const [schema, setSchema] = useState<DatasetSchema | null>(null)
   const [fileName, setFileName] = useState<string | null>(null)
 
   const dashboardRef = useRef<HTMLDivElement>(null)
   const chartsRef = useRef<HTMLDivElement>(null)
 
   function handleDataLoaded(rows: AspenRow[], name: string) {
+    const nextSchema = inferDatasetSchema(rows)
     setData(rows)
+    setSchema(nextSchema)
     setFileName(name)
   }
 
@@ -69,14 +73,14 @@ export function DashboardClient() {
           {data.length > 0 ? (
             <>
               {/* KPIs */}
-              <KPICards data={data} />
+              <KPICards data={data} schema={schema ?? inferDatasetSchema(data)} />
 
               {/* Data Table */}
               <DataTable data={data} />
 
               {/* Charts */}
               <div ref={chartsRef}>
-                <Charts data={data} />
+                <Charts data={data} schema={schema ?? inferDatasetSchema(data)} />
               </div>
             </>
           ) : (

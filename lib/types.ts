@@ -1,19 +1,7 @@
+export type DataCellValue = string | number | boolean | null | undefined
+
 export interface AspenRow {
-  Run_ID: string
-  Temperature: number
-  Pressure: number
-  Feed_Rate: number
-  Residence_Time: number
-  Catalyst_Loading: number
-  Yield: number
-  Conversion: number
-  Energy: number
-  Reactor_Duty: number
-  Cooling_Duty: number
-  Selectivity: number
-  Byproduct: number
-  Cost_Index: number
-  [key: string]: string | number
+  [key: string]: DataCellValue
 }
 
 export interface KPIData {

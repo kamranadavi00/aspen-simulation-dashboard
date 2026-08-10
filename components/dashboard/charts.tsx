@@ -1,7 +1,11 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
   Line,
   LineChart,
@@ -15,6 +19,7 @@ import {
 } from 'recharts'
 import type { AspenRow } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { generateChartRecommendations, type DatasetSchema } from '@/lib/analysis'
 
 // Chart color palette (matches design tokens)
 const COLORS = {
@@ -64,6 +69,7 @@ const axisStyle = {
 
 interface ChartsProps {
   data: AspenRow[]
+  schema: DatasetSchema
 }
 
 // Sort data by a key for better line charts
@@ -74,6 +80,24 @@ function sortedBy(data: AspenRow[], key: keyof AspenRow) {
 // Heatmap component
 interface HeatmapProps {
   data: AspenRow[]
+}
+
+type ChartType = 'line' | 'bar' | 'scatter' | 'area'
+
+interface BuilderChartConfig {
+  id: string
+  x: string
+  y: string
+  type: ChartType
+}
+
+function numericValueFromCell(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string') {
+    const parsed = Number(value.replace(/,/g, ''))
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
 }
 
 function Heatmap({ data }: HeatmapProps) {
@@ -233,169 +257,173 @@ function Heatmap({ data }: HeatmapProps) {
   )
 }
 
-export function Charts({ data }: ChartsProps) {
-  const byTemp = useMemo(() => sortedBy(data, 'Temperature'), [data])
-  const byPressure = useMemo(() => sortedBy(data, 'Pressure'), [data])
-  const byFeedRate = useMemo(() => sortedBy(data, 'Feed_Rate'), [data])
+export function Charts({ data, schema }: ChartsProps) {
+  const numericColumns = schema?.numericColumns ?? []
+  const firstNumeric = numericColumns[0]
+  const secondNumeric = numericColumns[1]
+  const byTemp = useMemo(() => sortedBy(data, firstNumeric || 'Temperature' as keyof AspenRow), [data, firstNumeric])
+  const byPressure = useMemo(() => sortedBy(data, secondNumeric || 'Pressure' as keyof AspenRow), [data, secondNumeric])
+  const byFeedRate = useMemo(() => sortedBy(data, firstNumeric || 'Yield' as keyof AspenRow), [data, firstNumeric])
+
+  const [chartConfigs, setChartConfigs] = useState<BuilderChartConfig[]>([])
+  const [builderX, setBuilderX] = useState<string>('')
+  const [builderY, setBuilderY] = useState<string>('')
+  const [builderType, setBuilderType] = useState<ChartType>('line')
+
+  useEffect(() => {
+    if (!data.length) return
+
+    const recommendations = generateChartRecommendations(data, schema.columns)
+    const initial = recommendations.length
+      ? recommendations.map((c, index) => ({
+          id: `${c.title}-${index}-${crypto.randomUUID()}`,
+          x: c.x,
+          y: c.y,
+          type: c.type,
+        }))
+      : [{ id: 'chart-1', x: firstNumeric ?? schema.chartAxisColumns[0] ?? '', y: numericColumns[1] ?? numericColumns[0] ?? '', type: 'line' }]
+
+    setChartConfigs(initial)
+    setBuilderX(initial[0]?.x ?? '')
+    setBuilderY(initial[0]?.y ?? '')
+    setBuilderType(initial[0]?.type ?? 'line')
+  }, [data, schema, firstNumeric])
 
   if (!data.length) return null
 
+  const axisOptions = schema.chartAxisColumns
+  const yOptions = schema.numericColumns
+
+  const addChart = () => {
+    const useX = builderX || axisOptions[0] || ''
+    const useY = builderY || yOptions[0] || ''
+
+    if (!useX || !useY) return
+
+    setChartConfigs((current) => [
+      ...current,
+      {
+        id: crypto.randomUUID(),
+        x: useX,
+        y: useY,
+        type: builderType,
+      },
+    ])
+  }
+
+  const removeChart = (id: string) => {
+    setChartConfigs((current) => current.filter((config) => config.id !== id))
+  }
+
   return (
     <section aria-label="Analytics Charts" id="charts-section">
-      <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-        Process Analytics
-      </h2>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          Process Analytics
+        </h2>
+        <span className="rounded-full border border-border bg-muted px-3 py-1 text-[10px] font-medium text-muted-foreground">
+          {chartConfigs.length} chart{chartConfigs.length === 1 ? '' : 's'}
+        </span>
+      </div>
+
+      <div className="mb-4 rounded-xl border border-border bg-card p-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            X-axis
+            <select className="rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground" value={builderX} onChange={(e) => setBuilderX(e.target.value)}>
+              {axisOptions.map((col) => <option key={col} value={col}>{col}</option>)}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            Y-axis
+            <select className="rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground" value={builderY} onChange={(e) => setBuilderY(e.target.value)}>
+              {yOptions.map((col) => <option key={col} value={col}>{col}</option>)}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            Chart type
+            <select className="rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground" value={builderType} onChange={(e) => setBuilderType(e.target.value as ChartType)}>
+              <option value="line">Line chart</option>
+              <option value="bar">Bar chart</option>
+              <option value="scatter">Scatter plot</option>
+              <option value="area">Area chart</option>
+            </select>
+          </label>
+          <button className="rounded-lg border border-primary/40 bg-primary/10 px-4 py-2 text-xs font-semibold text-primary hover:bg-primary/20" onClick={addChart}>
+            Add chart
+          </button>
+        </div>
+      </div>
 
       <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-        {/* Yield vs Temperature */}
-        <ChartCard
-          title="Yield vs Temperature"
-          subtitle="Impact of temperature on product yield"
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={byTemp} margin={{ top: 5, right: 10, left: -15, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.22 0.025 240)" />
-              <XAxis dataKey="Temperature" {...axisStyle} label={{ value: '°C', position: 'insideRight', dx: 8, fill: 'oklch(0.58 0.04 230)', fontSize: 10 }} />
-              <YAxis {...axisStyle} />
-              <Tooltip {...tooltipStyle} formatter={(v: number) => [`${v.toFixed(2)}%`, 'Yield']} labelFormatter={(l) => `Temp: ${l}°C`} />
-              <Line type="monotone" dataKey="Yield" stroke={COLORS.teal} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: COLORS.teal }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
+        {chartConfigs.map((config) => {
+          const configRows = data.map((row) => ({
+            x: row[config.x],
+            y: row[config.y],
+          }))
 
-        {/* Conversion vs Temperature */}
-        <ChartCard
-          title="Conversion vs Temperature"
-          subtitle="Reactant conversion across temperature range"
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={byTemp} margin={{ top: 5, right: 10, left: -15, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.22 0.025 240)" />
-              <XAxis dataKey="Temperature" {...axisStyle} />
-              <YAxis {...axisStyle} />
-              <Tooltip {...tooltipStyle} formatter={(v: number) => [`${v.toFixed(2)}%`, 'Conversion']} labelFormatter={(l) => `Temp: ${l}°C`} />
-              <Line type="monotone" dataKey="Conversion" stroke={COLORS.blue} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: COLORS.blue }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
+          const renderChart = () => {
+            if (config.type === 'line') {
+              return (
+                <LineChart data={configRows} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.22 0.025 240)" />
+                  <XAxis dataKey="x" {...axisStyle} />
+                  <YAxis {...axisStyle} />
+                  <Tooltip {...tooltipStyle} />
+                  <Line type="monotone" dataKey="y" stroke={COLORS.teal} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: COLORS.teal }} />
+                </LineChart>
+              )
+            }
 
-        {/* Energy vs Temperature */}
-        <ChartCard
-          title="Energy vs Temperature"
-          subtitle="Energy consumption across temperature range"
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={byTemp} margin={{ top: 5, right: 10, left: -15, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.22 0.025 240)" />
-              <XAxis dataKey="Temperature" {...axisStyle} />
-              <YAxis {...axisStyle} />
-              <Tooltip {...tooltipStyle} formatter={(v: number) => [`${v.toFixed(2)} GJ/h`, 'Energy']} labelFormatter={(l) => `Temp: ${l}°C`} />
-              <Line type="monotone" dataKey="Energy" stroke={COLORS.amber} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: COLORS.amber }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
+            if (config.type === 'bar') {
+              return (
+                <BarChart data={configRows} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.22 0.025 240)" />
+                  <XAxis dataKey="x" {...axisStyle} />
+                  <YAxis {...axisStyle} />
+                  <Tooltip {...tooltipStyle} />
+                  <Bar dataKey="y" fill={COLORS.green} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              )
+            }
 
-        {/* Yield vs Pressure */}
-        <ChartCard
-          title="Yield vs Pressure"
-          subtitle="Effect of operating pressure on yield"
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={byPressure} margin={{ top: 5, right: 10, left: -15, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.22 0.025 240)" />
-              <XAxis dataKey="Pressure" {...axisStyle} label={{ value: 'bar', position: 'insideRight', dx: 8, fill: 'oklch(0.58 0.04 230)', fontSize: 10 }} />
-              <YAxis {...axisStyle} />
-              <Tooltip {...tooltipStyle} formatter={(v: number) => [`${v.toFixed(2)}%`, 'Yield']} labelFormatter={(l) => `Pressure: ${l} bar`} />
-              <Line type="monotone" dataKey="Yield" stroke={COLORS.green} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: COLORS.green }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
+            if (config.type === 'area') {
+              return (
+                <AreaChart data={configRows} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.22 0.025 240)" />
+                  <XAxis dataKey="x" {...axisStyle} />
+                  <YAxis {...axisStyle} />
+                  <Tooltip {...tooltipStyle} />
+                  <Area type="monotone" dataKey="y" stroke={COLORS.blue} fill={COLORS.blue} strokeWidth={2} />
+                </AreaChart>
+              )
+            }
 
-        {/* Conversion vs Pressure */}
-        <ChartCard
-          title="Conversion vs Pressure"
-          subtitle="Reactant conversion at varying pressures"
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={byPressure} margin={{ top: 5, right: 10, left: -15, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.22 0.025 240)" />
-              <XAxis dataKey="Pressure" {...axisStyle} />
-              <YAxis {...axisStyle} />
-              <Tooltip {...tooltipStyle} formatter={(v: number) => [`${v.toFixed(2)}%`, 'Conversion']} labelFormatter={(l) => `Pressure: ${l} bar`} />
-              <Line type="monotone" dataKey="Conversion" stroke={COLORS.red} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: COLORS.red }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
+            return (
+              <ScatterChart data={configRows} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.22 0.025 240)" />
+                <XAxis dataKey="x" name={config.x} {...axisStyle} />
+                <YAxis dataKey="y" name={config.y} {...axisStyle} />
+                <ZAxis range={[40, 40]} />
+                <Tooltip {...tooltipStyle} />
+                <Scatter data={configRows} fill={COLORS.teal} />
+              </ScatterChart>
+            )
+          }
 
-        {/* Feed Rate vs Yield */}
-        <ChartCard
-          title="Feed Rate vs Yield"
-          subtitle="How feed rate influences product yield"
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={byFeedRate} margin={{ top: 5, right: 10, left: -15, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.22 0.025 240)" />
-              <XAxis dataKey="Feed_Rate" {...axisStyle} label={{ value: 'kmol/h', position: 'insideRight', dx: 14, fill: 'oklch(0.58 0.04 230)', fontSize: 10 }} />
-              <YAxis {...axisStyle} />
-              <Tooltip {...tooltipStyle} formatter={(v: number) => [`${v.toFixed(2)}%`, 'Yield']} labelFormatter={(l) => `Feed Rate: ${l} kmol/h`} />
-              <Line type="monotone" dataKey="Yield" stroke={COLORS.blue} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: COLORS.blue }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        {/* Energy vs Yield Scatter */}
-        <ChartCard
-          title="Energy vs Yield (Scatter)"
-          subtitle="Energy consumption plotted against yield — identify efficient operating zones"
-          className="md:col-span-2 xl:col-span-2"
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart margin={{ top: 5, right: 20, left: -15, bottom: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.22 0.025 240)" />
-              <XAxis
-                dataKey="Yield"
-                name="Yield"
-                {...axisStyle}
-                label={{ value: 'Yield (%)', position: 'insideBottom', dy: 18, fill: 'oklch(0.58 0.04 230)', fontSize: 10 }}
-              />
-              <YAxis
-                dataKey="Energy"
-                name="Energy"
-                {...axisStyle}
-                label={{ value: 'Energy (GJ/h)', angle: -90, position: 'insideLeft', dx: 12, fill: 'oklch(0.58 0.04 230)', fontSize: 10 }}
-              />
-              <ZAxis range={[30, 30]} />
-              <Tooltip
-                {...tooltipStyle}
-                cursor={{ strokeDasharray: '3 3', stroke: 'oklch(0.58 0.04 230)' }}
-                content={({ active, payload }) => {
-                  if (active && payload && payload.length) {
-                    const d = payload[0].payload as AspenRow
-                    return (
-                      <div
-                        style={{
-                          background: 'oklch(0.17 0.02 240)',
-                          border: '1px solid oklch(0.22 0.025 240)',
-                          borderRadius: 8,
-                          padding: '8px 12px',
-                          fontSize: 12,
-                          color: 'oklch(0.93 0.01 220)',
-                        }}
-                      >
-                        <p style={{ fontWeight: 600, marginBottom: 4 }}>{d.Run_ID}</p>
-                        <p>Yield: <strong>{d.Yield.toFixed(2)}%</strong></p>
-                        <p>Energy: <strong>{d.Energy.toFixed(2)} GJ/h</strong></p>
-                        <p>Temp: <strong>{d.Temperature}°C</strong></p>
-                      </div>
-                    )
-                  }
-                  return null
-                }}
-              />
-              <Scatter data={data} fill={COLORS.teal} fillOpacity={0.7} />
-            </ScatterChart>
-          </ResponsiveContainer>
-        </ChartCard>
+          return (
+            <ChartCard key={config.id} title={`${config.x} vs ${config.y}`} subtitle={`${config.type.toUpperCase()} chart`}>
+              <div className="relative h-full">
+                <div className="absolute right-0 top-0 z-10">
+                  <button className="rounded-md border border-border bg-muted px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground" onClick={() => removeChart(config.id)}>Remove</button>
+                </div>
+                <ResponsiveContainer width="100%" height="100%">
+                  {renderChart()}
+                </ResponsiveContainer>
+              </div>
+            </ChartCard>
+          )
+        })}
 
         {/* Heatmap */}
         <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5 md:col-span-2 xl:col-span-3">
