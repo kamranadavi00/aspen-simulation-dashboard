@@ -116,6 +116,28 @@ export function ChatAssistant({ data, fileName }: ChatAssistantProps) {
     }
   }, [isOpen, messages])
 
+  useEffect(() => {
+    setMessages((current) => current.map((message) =>
+      message.id === 'welcome'
+        ? {
+            ...message,
+            content: data.length
+              ? `I’m reviewing ${fileName ?? 'your dataset'} with ${data.length.toLocaleString()} loaded runs. Ask about the data, KPIs, charts, insights, or operating points.`
+              : 'Upload a CSV file to begin a file-aware conversation.',
+          }
+        : message
+    ))
+  }, [data.length, fileName])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsOpen(false)
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [isOpen])
+
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
 
@@ -272,37 +294,46 @@ export function ChatAssistant({ data, fileName }: ChatAssistantProps) {
 
   return (
     <>
-      <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-2">
+      {isOpen && <button type="button" aria-label="Close analyst panel" className="fixed inset-0 z-40 bg-black/45 backdrop-blur-[2px] sm:hidden" onClick={() => setIsOpen(false)} />}
+      <div className="fixed bottom-4 right-4 z-50 sm:bottom-6 sm:right-6">
         {isOpen && (
-          <section className="w-[min(92vw,390px)] h-[min(78vh,720px)] max-h-[720px] min-h-[520px] sm:h-[660px] sm:max-h-[680px] md:h-[720px] md:max-h-[760px] flex flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl shadow-black/30">
-            <div className="flex items-center justify-between border-b border-border bg-card px-4 py-3">
+          <section id="analyst-panel" aria-label="Aspen analyst chat" className="surface-panel fixed inset-x-3 bottom-20 top-20 flex flex-col overflow-hidden rounded-2xl bg-background shadow-2xl shadow-black/40 sm:inset-auto sm:bottom-20 sm:right-6 sm:h-[min(720px,calc(100vh-7rem))] sm:w-[410px]">
+            <div className="flex items-center justify-between border-b border-border/80 bg-card/95 px-4 py-3.5">
               <div className="flex items-center gap-2">
-                <div className="flex size-8 items-center justify-center rounded-full border border-primary/30 bg-primary/10">
-                  <Bot className="size-4 text-primary" />
+                <div className="flex size-9 items-center justify-center rounded-xl border border-primary/25 bg-primary/10">
+                  <Bot className="size-4.5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">Aspen Analyst</p>
-                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                    {fileName ? 'File Context' : 'No file loaded'}
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-foreground">Aspen analyst</p>
+                    <span className="size-1.5 rounded-full bg-emerald-400" />
+                  </div>
+                  <p className="mt-0.5 max-w-[220px] truncate text-[11px] text-muted-foreground">
+                    {fileName ?? 'No dataset loaded'}
                   </p>
                 </div>
               </div>
 
-              <Button variant="ghost" size="icon-sm" onClick={() => setIsOpen(false)}>
+              <Button variant="ghost" size="icon-sm" aria-label="Close analyst" onClick={() => setIsOpen(false)}>
                 <X className="size-4" />
               </Button>
             </div>
 
-            <div ref={chatContainerRef} className="flex-1 min-h-0 overflow-y-auto bg-background px-4 py-3">
-              <div className="flex flex-col gap-3">
+            <div ref={chatContainerRef} className="min-h-0 flex-1 overflow-y-auto bg-background px-4 py-5">
+              <div className="flex flex-col gap-4">
                 {messages.map((message) => (
-                  <div key={message.id} className={cn('flex', message.role === 'user' ? 'justify-end' : 'justify-start')}>
+                  <div key={message.id} className={cn('flex items-end gap-2', message.role === 'user' ? 'justify-end' : 'justify-start')}>
+                    {message.role === 'assistant' && (
+                      <div className="mb-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-primary">
+                        <Bot className="size-3.5" />
+                      </div>
+                    )}
                     <div
                       className={cn(
-                        'max-w-[88%] rounded-2xl px-3 py-2 text-xs leading-5',
+                        'max-w-[84%] rounded-2xl px-3.5 py-2.5 text-xs leading-5 shadow-sm',
                         message.role === 'user'
-                          ? 'bg-primary text-primary-foreground rounded-br-md'
-                          : 'border border-border bg-muted text-foreground rounded-bl-md'
+                          ? 'rounded-br-md bg-primary text-primary-foreground shadow-primary/10'
+                          : 'rounded-bl-md border border-border bg-card text-foreground'
                       )}
                     >
                       {message.role === 'assistant' ? (
@@ -326,24 +357,24 @@ export function ChatAssistant({ data, fileName }: ChatAssistantProps) {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="border-t border-border bg-card p-3">
+            <form onSubmit={handleSubmit} className="border-t border-border/80 bg-card/95 p-3.5">
               <div className="flex items-center gap-2">
                 <input
                   value={input}
                   onChange={(event) => setInput(event.target.value)}
                   placeholder={data.length ? 'Ask about the uploaded file...' : 'Upload data to start'}
                   disabled={!data.length}
-                  className="h-9 flex-1 rounded-xl border border-border bg-background px-3 text-xs outline-none placeholder:text-muted-foreground focus:border-primary"
+                  aria-label="Ask the Aspen analyst"
+                  className="h-11 min-w-0 flex-1 rounded-xl border border-input bg-background/80 px-3.5 text-xs outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground/80 focus:border-primary focus:ring-3 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60"
                 />
-                <Button type="submit" size="sm" disabled={!data.length || !input.trim()} className="gap-1.5">
-                  <Send className="size-3.5" />
-                  Send
+                <Button type="submit" size="icon" disabled={!data.length || !input.trim()} aria-label="Send question">
+                  <Send className="size-4" />
                 </Button>
               </div>
 
-              <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
-                <span>{data.length ? `${summary.rowCount.toLocaleString()} runs` : 'Awaiting upload'}</span>
-                <span className="font-mono">context: {fileName ?? 'No file'}</span>
+              <div className="mt-2.5 flex items-center justify-between gap-2 px-1 text-[10px] text-muted-foreground">
+                <span>{data.length ? `${summary.rowCount.toLocaleString()} runs in context` : 'Awaiting dataset upload'}</span>
+                <span>Esc to close</span>
               </div>
             </form>
           </section>
@@ -353,12 +384,16 @@ export function ChatAssistant({ data, fileName }: ChatAssistantProps) {
           type="button"
           onClick={() => setIsOpen((current) => !current)}
           className={cn(
-            'flex size-14 items-center justify-center rounded-full border border-primary/30 bg-primary text-primary-foreground shadow-lg transition-all hover:scale-105 hover:bg-primary/90',
-            !data.length && 'cursor-not-allowed opacity-80'
+            'flex h-12 items-center justify-center gap-2 rounded-full border border-primary/30 bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-xl shadow-black/25 transition-[background-color,transform,box-shadow] hover:-translate-y-0.5 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/25',
+            isOpen && 'bg-secondary text-foreground hover:bg-secondary/80',
+            !data.length && 'opacity-80'
           )}
-          aria-label="Open Aspen analyst chat"
+          aria-label={isOpen ? 'Close Aspen analyst chat' : 'Open Aspen analyst chat'}
+          aria-expanded={isOpen}
+          aria-controls="analyst-panel"
         >
-          <MessageCircle className="size-6" />
+          {isOpen ? <X className="size-5" /> : <MessageCircle className="size-5" />}
+          <span className="hidden sm:inline">{isOpen ? 'Close' : 'Ask analyst'}</span>
         </button>
       </div>
     </>

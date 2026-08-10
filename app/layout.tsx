@@ -9,16 +9,15 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Aspen Process Analytics Dashboard',
+  title: 'AspenIQ | Process Analytics Workspace',
   description:
     'Interactive process analytics dashboard for Aspen Plus / Aspen HYSYS simulation results. Upload CSV output files to analyze yield, conversion, energy, and optimization data.',
-  generator: 'v0.app',
   keywords: ['Aspen Plus', 'HYSYS', 'process engineering', 'chemical engineering', 'analytics', 'simulation'],
 }
 
 export const viewport: Viewport = {
   colorScheme: 'dark',
-  themeColor: '#0a0f1e',
+  themeColor: '#0d1728',
 }
 
 export default function RootLayout({

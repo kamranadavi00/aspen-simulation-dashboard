@@ -49,41 +49,40 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Engineering dark theme — always dark, overrides shadcn defaults via :root:root for higher specificity */
 :root:root {
   color-scheme: dark;
-  --background: oklch(0.09 0.018 250);
-  --foreground: oklch(0.93 0.01 220);
-  --card: oklch(0.13 0.022 250);
-  --card-foreground: oklch(0.93 0.01 220);
-  --popover: oklch(0.13 0.022 250);
-  --popover-foreground: oklch(0.93 0.01 220);
-  --primary: oklch(0.72 0.19 200);
-  --primary-foreground: oklch(0.09 0.018 250);
-  --secondary: oklch(0.18 0.025 240);
-  --secondary-foreground: oklch(0.93 0.01 220);
-  --muted: oklch(0.17 0.02 240);
-  --muted-foreground: oklch(0.58 0.04 230);
-  --accent: oklch(0.65 0.2 220);
-  --accent-foreground: oklch(0.93 0.01 220);
-  --destructive: oklch(0.65 0.22 25);
-  --border: oklch(0.22 0.025 240);
-  --input: oklch(0.18 0.025 240);
-  --ring: oklch(0.72 0.19 200);
-  --chart-1: oklch(0.72 0.19 200);
-  --chart-2: oklch(0.65 0.2 220);
-  --chart-3: oklch(0.78 0.16 140);
-  --chart-4: oklch(0.75 0.18 60);
-  --chart-5: oklch(0.65 0.22 25);
-  --radius: 0.5rem;
-  --sidebar: oklch(0.11 0.02 250);
-  --sidebar-foreground: oklch(0.93 0.01 220);
-  --sidebar-primary: oklch(0.72 0.19 200);
-  --sidebar-primary-foreground: oklch(0.09 0.018 250);
-  --sidebar-accent: oklch(0.17 0.02 240);
-  --sidebar-accent-foreground: oklch(0.93 0.01 220);
-  --sidebar-border: oklch(0.22 0.025 240);
-  --sidebar-ring: oklch(0.72 0.19 200);
+  --background: oklch(0.115 0.025 258);
+  --foreground: oklch(0.965 0.008 245);
+  --card: oklch(0.155 0.028 258);
+  --card-foreground: oklch(0.965 0.008 245);
+  --popover: oklch(0.175 0.03 258);
+  --popover-foreground: oklch(0.965 0.008 245);
+  --primary: oklch(0.72 0.16 238);
+  --primary-foreground: oklch(0.12 0.03 258);
+  --secondary: oklch(0.205 0.032 255);
+  --secondary-foreground: oklch(0.94 0.01 245);
+  --muted: oklch(0.19 0.025 258);
+  --muted-foreground: oklch(0.69 0.028 248);
+  --accent: oklch(0.68 0.15 190);
+  --accent-foreground: oklch(0.11 0.025 258);
+  --destructive: oklch(0.67 0.2 28);
+  --border: oklch(0.255 0.03 255);
+  --input: oklch(0.225 0.032 255);
+  --ring: oklch(0.72 0.16 238);
+  --chart-1: oklch(0.72 0.16 238);
+  --chart-2: oklch(0.72 0.14 190);
+  --chart-3: oklch(0.77 0.16 145);
+  --chart-4: oklch(0.79 0.16 78);
+  --chart-5: oklch(0.69 0.19 25);
+  --radius: 0.75rem;
+  --sidebar: oklch(0.135 0.026 258);
+  --sidebar-foreground: oklch(0.965 0.008 245);
+  --sidebar-primary: oklch(0.72 0.16 238);
+  --sidebar-primary-foreground: oklch(0.12 0.03 258);
+  --sidebar-accent: oklch(0.19 0.025 258);
+  --sidebar-accent-foreground: oklch(0.94 0.01 245);
+  --sidebar-border: oklch(0.255 0.03 255);
+  --sidebar-ring: oklch(0.72 0.16 238);
 }
 
 @layer base {
@@ -91,27 +90,70 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    min-width: 320px;
   }
   html {
-    @apply font-sans bg-background;
+    @apply scroll-smooth font-sans bg-background;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--primary) 32%, transparent);
+    color: var(--foreground);
+  }
+  button,
+  a,
+  input,
+  select {
+    -webkit-tap-highlight-color: transparent;
   }
 }
 
-/* Custom scrollbar for engineering feel */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: oklch(0.13 0.022 250);
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: oklch(0.3 0.04 240);
-  border-radius: 3px;
+  background: oklch(0.32 0.035 255);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.45 0.08 220);
+  background: oklch(0.44 0.06 245);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+@layer components {
+  .surface-panel {
+    border: 1px solid color-mix(in oklab, var(--border) 88%, transparent);
+    background: color-mix(in oklab, var(--card) 94%, transparent);
+    box-shadow: 0 1px 0 color-mix(in oklab, white 4%, transparent) inset, 0 18px 50px color-mix(in oklab, black 16%, transparent);
+  }
+
+  .field-select {
+    min-height: 2.625rem;
+    border-radius: 0.7rem;
+    border: 1px solid var(--input);
+    background: color-mix(in oklab, var(--background) 72%, transparent);
+    padding: 0 2.25rem 0 0.8rem;
+    color: var(--foreground);
+    font-size: 0.8125rem;
+    outline: none;
+    transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  }
+
+  .field-select:hover {
+    border-color: color-mix(in oklab, var(--primary) 45%, var(--border));
+  }
+
+  .field-select:focus-visible {
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 18%, transparent);
+  }
 }
 
 .chat-assistant-loading-wrap {
@@ -126,8 +168,8 @@
   width: 0.34rem;
   height: 0.34rem;
   border-radius: 999px;
-  background: oklch(0.95 0.02 240);
-  border: 1px solid oklch(0.88 0.02 240);
+  background: var(--primary);
+  border: 1px solid color-mix(in oklab, var(--primary) 80%, white);
   animation: assistant-typing-bounce 1.12s ease-in-out infinite;
 }
 
@@ -151,8 +193,8 @@
 }
 
 .markdown-render {
-  font-size: 11px;
-  line-height: 1.55;
+  font-size: 12px;
+  line-height: 1.65;
   color: inherit;
 }
 
@@ -212,8 +254,8 @@
   font-size: 0.89em;
   padding: 0.12rem 0.28rem;
   border-radius: 0.22rem;
-  background: oklch(0.20 0.03 240);
-  color: oklch(0.88 0.03 210);
+  background: var(--secondary);
+  color: color-mix(in oklab, var(--primary) 72%, white);
 }
 
 .markdown-render pre {
@@ -221,7 +263,7 @@
   margin: 0.55rem 0;
   border-radius: 0.45rem;
   border: 1px solid var(--border);
-  background: oklch(0.16 0.02 240);
+  background: var(--background);
   padding: 0.55rem;
 }
 
@@ -246,15 +288,15 @@
 }
 
 .markdown-render th {
-  background: oklch(0.18 0.03 250);
+  background: var(--secondary);
 }
 
 .markdown-render blockquote {
   margin: 0.56rem 0;
   padding: 0.42rem 0.55rem;
   border-left: 3px solid var(--primary);
-  background: oklch(0.18 0.03 250);
-  color: oklch(0.75 0.04 230);
+  background: var(--secondary);
+  color: var(--muted-foreground);
 }
 
 .markdown-render hr {
@@ -262,3 +304,13 @@
   margin: 0.62rem 0;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

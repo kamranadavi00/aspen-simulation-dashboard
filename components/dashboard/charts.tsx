@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { ChartSpline, Plus, SlidersHorizontal, X } from 'lucide-react'
 import {
   Area,
   AreaChart,
@@ -18,16 +19,17 @@ import {
   ZAxis,
 } from 'recharts'
 import type { AspenRow } from '@/lib/types'
+import { Button } from '@/components/ui/button'
 import { cn, toFiniteNumber } from '@/lib/utils'
 import { generateChartRecommendations, type DatasetSchema } from '@/lib/analysis'
 
 // Chart color palette (matches design tokens)
 const COLORS = {
-  teal: 'oklch(0.72 0.19 200)',
-  blue: 'oklch(0.65 0.2 220)',
-  green: 'oklch(0.78 0.16 140)',
-  amber: 'oklch(0.75 0.18 60)',
-  red: 'oklch(0.65 0.22 25)',
+  teal: 'oklch(0.72 0.14 190)',
+  blue: 'oklch(0.72 0.16 238)',
+  green: 'oklch(0.77 0.16 145)',
+  amber: 'oklch(0.79 0.16 78)',
+  red: 'oklch(0.69 0.19 25)',
 }
 
 interface ChartCardProps {
@@ -39,30 +41,36 @@ interface ChartCardProps {
 
 function ChartCard({ title, subtitle, children, className }: ChartCardProps) {
   return (
-    <div className={cn('flex flex-col gap-3 rounded-xl border border-border bg-card p-5', className)}>
-      <div>
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-        {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+    <div className={cn('surface-panel flex flex-col gap-5 rounded-2xl p-5 sm:p-6', className)}>
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+          <ChartSpline className="size-4" />
+        </div>
+        <div className="min-w-0">
+          <h3 className="truncate text-sm font-semibold text-foreground">{title}</h3>
+          {subtitle && <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>}
+        </div>
       </div>
-      <div className="h-56">{children}</div>
+      <div className="h-72 min-h-72">{children}</div>
     </div>
   )
 }
 
 const tooltipStyle = {
   contentStyle: {
-    background: 'oklch(0.17 0.02 240)',
-    border: '1px solid oklch(0.22 0.025 240)',
-    borderRadius: '8px',
-    color: 'oklch(0.93 0.01 220)',
+    background: 'oklch(0.175 0.03 258)',
+    border: '1px solid oklch(0.30 0.04 252)',
+    borderRadius: '12px',
+    color: 'oklch(0.965 0.008 245)',
     fontSize: '12px',
+    boxShadow: '0 16px 40px rgba(0,0,0,.28)',
   },
-  labelStyle: { color: 'oklch(0.58 0.04 230)', marginBottom: 4 },
-  itemStyle: { color: 'oklch(0.93 0.01 220)' },
+  labelStyle: { color: 'oklch(0.72 0.03 245)', marginBottom: 6 },
+  itemStyle: { color: 'oklch(0.965 0.008 245)' },
 }
 
 const axisStyle = {
-  tick: { fill: 'oklch(0.58 0.04 230)', fontSize: 11 },
+  tick: { fill: 'oklch(0.69 0.028 248)', fontSize: 11 },
   line: false as false,
   tickLine: false as false,
 }
@@ -131,17 +139,17 @@ function Heatmap({ data }: HeatmapProps) {
   const cellH = Math.max(24, Math.min(48, Math.floor(240 / pressures.length)))
 
   function yieldColor(y: number | null) {
-    if (y === null) return 'oklch(0.17 0.02 240)'
+    if (y === null) return 'oklch(0.19 0.025 258)'
     const t = (y - minYield) / Math.max(maxYield - minYield, 0.001)
     const l = 0.22 + t * 0.52
     const c = 0.04 + t * 0.18
-    return `oklch(${l.toFixed(3)} ${c.toFixed(3)} 200)`
+    return `oklch(${l.toFixed(3)} ${c.toFixed(3)} 205)`
   }
 
   return (
     <div className="flex flex-col gap-3">
       <div className="overflow-x-auto">
-        <div className="relative inline-block ml-8">
+        <div className="relative ml-2 inline-block sm:ml-8">
           <svg
             width={temps.length * cellW + 60}
             height={pressures.length * cellH + 40}
@@ -154,7 +162,7 @@ function Heatmap({ data }: HeatmapProps) {
                 x={60 + i * cellW + cellW / 2}
                 y={pressures.length * cellH + 14}
                 fontSize={9}
-                fill="oklch(0.58 0.04 230)"
+                fill="oklch(0.69 0.028 248)"
                 textAnchor="middle"
                 dominantBaseline="middle"
               >
@@ -166,7 +174,7 @@ function Heatmap({ data }: HeatmapProps) {
               x={60 + (temps.length * cellW) / 2}
               y={pressures.length * cellH + 32}
               fontSize={10}
-              fill="oklch(0.58 0.04 230)"
+              fill="oklch(0.69 0.028 248)"
               textAnchor="middle"
             >
               Temperature (°C)
@@ -178,7 +186,7 @@ function Heatmap({ data }: HeatmapProps) {
                 x={54}
                 y={j * cellH + cellH / 2}
                 fontSize={9}
-                fill="oklch(0.58 0.04 230)"
+                fill="oklch(0.69 0.028 248)"
                 textAnchor="end"
                 dominantBaseline="middle"
               >
@@ -198,20 +206,25 @@ function Heatmap({ data }: HeatmapProps) {
                     fill={yieldColor(cell.y)}
                     stroke={
                       hovered?.t === cell.t && hovered?.p === cell.p
-                        ? 'oklch(0.72 0.19 200)'
-                        : 'oklch(0.13 0.022 250)'
+                        ? 'oklch(0.86 0.12 205)'
+                        : 'oklch(0.14 0.026 258)'
                     }
-                    strokeWidth={hovered?.t === cell.t && hovered?.p === cell.p ? 1.5 : 0.5}
-                    onMouseEnter={() => cell.y !== null && setHovered({ t: cell.t, p: cell.p, y: cell.y! })}
+                    strokeWidth={hovered?.t === cell.t && hovered?.p === cell.p ? 2 : 0.5}
+                    tabIndex={cell.y === null ? -1 : 0}
+                    role="img"
+                    aria-label={cell.y === null ? `No yield value at ${cell.t} degrees and ${cell.p} bar` : `Yield ${cell.y.toFixed(2)} percent at ${cell.t} degrees and ${cell.p} bar`}
+                    onMouseEnter={() => cell.y !== null && setHovered({ t: cell.t, p: cell.p, y: cell.y })}
                     onMouseLeave={() => setHovered(null)}
-                    className="cursor-pointer"
+                    onFocus={() => cell.y !== null && setHovered({ t: cell.t, p: cell.p, y: cell.y })}
+                    onBlur={() => setHovered(null)}
+                    className="cursor-pointer outline-none"
                   />
                   {cellW >= 40 && cell.y !== null && (
                     <text
                       x={60 + i * cellW + cellW / 2}
                       y={j * cellH + cellH / 2}
                       fontSize={8}
-                      fill="oklch(0.93 0.01 220)"
+                      fill="oklch(0.965 0.008 245)"
                       textAnchor="middle"
                       dominantBaseline="middle"
                       pointerEvents="none"
@@ -227,7 +240,7 @@ function Heatmap({ data }: HeatmapProps) {
       </div>
 
       {/* Tooltip display */}
-      <div className="flex items-center gap-4 rounded-lg border border-border bg-muted px-4 py-2 text-xs min-h-[36px]">
+      <div className="flex min-h-11 flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-border/80 bg-background/45 px-4 py-2 text-xs">
         {hovered ? (
           <>
             <span className="text-muted-foreground">Temp:</span>
@@ -238,7 +251,7 @@ function Heatmap({ data }: HeatmapProps) {
             <span className="font-mono font-semibold text-primary">{hovered.y.toFixed(2)}%</span>
           </>
         ) : (
-          <span className="text-muted-foreground">Hover a cell to inspect Temperature, Pressure, and Yield values</span>
+          <span className="text-muted-foreground">Hover or focus a cell to inspect its operating values</span>
         )}
       </div>
 
@@ -246,8 +259,8 @@ function Heatmap({ data }: HeatmapProps) {
       <div className="flex items-center gap-3">
         <span className="text-[10px] text-muted-foreground">Low Yield</span>
         <div
-          className="h-3 flex-1 rounded-full"
-          style={{ background: 'linear-gradient(to right, oklch(0.22 0.04 200), oklch(0.72 0.19 200))' }}
+          className="h-2 flex-1 rounded-full"
+          style={{ background: 'linear-gradient(to right, oklch(0.22 0.04 205), oklch(0.74 0.18 205))' }}
         />
         <span className="text-[10px] text-muted-foreground">High Yield</span>
       </div>
@@ -310,46 +323,50 @@ export function Charts({ data, schema }: ChartsProps) {
   }
 
   return (
-    <section aria-label="Analytics Charts" id="charts-section">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          Process Analytics
-        </h2>
-        <span className="rounded-full border border-border bg-muted px-3 py-1 text-[10px] font-medium text-muted-foreground">
+    <section aria-label="Analytics Charts" id="charts-section" className="scroll-mt-28">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Explore relationships</p>
+          <h2 className="mt-1.5 text-2xl font-bold tracking-tight text-foreground">Process analytics</h2>
+          <p className="mt-1.5 text-sm text-muted-foreground">Compare operating inputs and outcomes across the current simulation set.</p>
+        </div>
+        <span className="w-fit rounded-full border border-border bg-muted/60 px-3 py-1.5 text-xs font-medium text-muted-foreground">
           {chartConfigs.length} chart{chartConfigs.length === 1 ? '' : 's'}
         </span>
       </div>
 
-      <div className="mb-4 rounded-xl border border-border bg-card p-3">
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-            X-axis
-            <select className="rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground" value={builderX} onChange={(e) => setBuilderX(e.target.value)}>
+      <div className="surface-panel mb-4 rounded-2xl p-4 sm:p-5">
+        <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-foreground">
+          <SlidersHorizontal className="size-4 text-primary" /> Chart builder
+          <span className="ml-1 text-xs font-normal text-muted-foreground">Create a focused comparison</span>
+        </div>
+        <div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_0.75fr_auto]">
+          <label className="flex flex-col gap-2 text-xs font-medium text-muted-foreground">
+            Horizontal axis
+            <select className="field-select w-full" value={builderX} onChange={(e) => setBuilderX(e.target.value)}>
               {axisOptions.map((col) => <option key={col} value={col}>{col}</option>)}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-            Y-axis
-            <select className="rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground" value={builderY} onChange={(e) => setBuilderY(e.target.value)}>
+          <label className="flex flex-col gap-2 text-xs font-medium text-muted-foreground">
+            Vertical axis
+            <select className="field-select w-full" value={builderY} onChange={(e) => setBuilderY(e.target.value)}>
               {yOptions.map((col) => <option key={col} value={col}>{col}</option>)}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          <label className="flex flex-col gap-2 text-xs font-medium text-muted-foreground">
             Chart type
-            <select className="rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground" value={builderType} onChange={(e) => setBuilderType(e.target.value as ChartType)}>
+            <select className="field-select w-full" value={builderType} onChange={(e) => setBuilderType(e.target.value as ChartType)}>
               <option value="line">Line chart</option>
               <option value="bar">Bar chart</option>
               <option value="scatter">Scatter plot</option>
               <option value="area">Area chart</option>
             </select>
           </label>
-          <button className="rounded-lg border border-primary/40 bg-primary/10 px-4 py-2 text-xs font-semibold text-primary hover:bg-primary/20" onClick={addChart}>
-            Add chart
-          </button>
+          <Button onClick={addChart} className="w-full gap-2 lg:w-auto"><Plus className="size-4" /> Add chart</Button>
         </div>
       </div>
 
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         {chartConfigs.map((config) => {
           const configRows = data.map((row) => ({
             x: row[config.x],
@@ -360,7 +377,7 @@ export function Charts({ data, schema }: ChartsProps) {
             if (config.type === 'line') {
               return (
                 <LineChart data={configRows} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.22 0.025 240)" />
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="oklch(0.255 0.03 255)" />
                   <XAxis dataKey="x" {...axisStyle} />
                   <YAxis {...axisStyle} />
                   <Tooltip {...tooltipStyle} />
@@ -372,7 +389,7 @@ export function Charts({ data, schema }: ChartsProps) {
             if (config.type === 'bar') {
               return (
                 <BarChart data={configRows} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.22 0.025 240)" />
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="oklch(0.255 0.03 255)" />
                   <XAxis dataKey="x" {...axisStyle} />
                   <YAxis {...axisStyle} />
                   <Tooltip {...tooltipStyle} />
@@ -384,18 +401,18 @@ export function Charts({ data, schema }: ChartsProps) {
             if (config.type === 'area') {
               return (
                 <AreaChart data={configRows} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.22 0.025 240)" />
+                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="oklch(0.255 0.03 255)" />
                   <XAxis dataKey="x" {...axisStyle} />
                   <YAxis {...axisStyle} />
                   <Tooltip {...tooltipStyle} />
-                  <Area type="monotone" dataKey="y" stroke={COLORS.blue} fill={COLORS.blue} strokeWidth={2} />
+                  <Area type="monotone" dataKey="y" stroke={COLORS.blue} fill={COLORS.blue} fillOpacity={0.14} strokeWidth={2} />
                 </AreaChart>
               )
             }
 
             return (
               <ScatterChart data={configRows} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.22 0.025 240)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.255 0.03 255)" />
                 <XAxis dataKey="x" name={config.x} {...axisStyle} />
                 <YAxis dataKey="y" name={config.y} {...axisStyle} />
                 <ZAxis range={[40, 40]} />
@@ -406,11 +423,9 @@ export function Charts({ data, schema }: ChartsProps) {
           }
 
           return (
-            <ChartCard key={config.id} title={`${config.x} vs ${config.y}`} subtitle={`${config.type.toUpperCase()} chart`}>
+            <ChartCard key={config.id} title={`${config.y} by ${config.x}`} subtitle={`${config.type.charAt(0).toUpperCase()}${config.type.slice(1)} view · ${data.length.toLocaleString()} runs`}>
               <div className="relative h-full">
-                <div className="absolute right-0 top-0 z-10">
-                  <button className="rounded-md border border-border bg-muted px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground" onClick={() => removeChart(config.id)}>Remove</button>
-                </div>
+                <button type="button" aria-label={`Remove ${config.x} versus ${config.y} chart`} title="Remove chart" className="absolute right-0 top-0 z-10 flex size-8 items-center justify-center rounded-lg border border-border bg-card/90 text-muted-foreground shadow-sm transition-colors hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => removeChart(config.id)}><X className="size-3.5" /></button>
                 <ResponsiveContainer width="100%" height="100%">
                   {renderChart()}
                 </ResponsiveContainer>
@@ -420,12 +435,17 @@ export function Charts({ data, schema }: ChartsProps) {
         })}
 
         {/* Heatmap */}
-        <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5 md:col-span-2 xl:col-span-3">
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Temperature × Pressure → Yield Heatmap</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Cell color represents yield intensity — hover a cell to inspect values
+        <div className="surface-panel flex flex-col gap-5 rounded-2xl p-5 sm:p-6 xl:col-span-2">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border border-accent/20 bg-accent/10 text-accent">
+              <SlidersHorizontal className="size-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Yield operating envelope</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Temperature × pressure, with color encoding the highest observed yield
             </p>
+            </div>
           </div>
           <Heatmap data={data} />
         </div>
