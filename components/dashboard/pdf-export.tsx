@@ -73,7 +73,7 @@ async function exportToPDF(
 
     pdf.save(filename)
   } catch (err) {
-    console.error('[v0] PDF export error:', err)
+    console.error('PDF export error:', err)
   } finally {
     onEnd()
   }
@@ -86,11 +86,13 @@ export function PDFExport({ dashboardRef, chartsRef, fileName }: PDFExportProps)
   const baseName = fileName?.replace(/\.csv$/i, '') ?? 'aspen-dashboard'
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex items-center gap-2">
       <Button
-        variant="outline"
+        variant="secondary"
         size="sm"
         disabled={exportingFull}
+        aria-busy={exportingFull}
+        aria-label={exportingFull ? 'Exporting full dashboard' : 'Export full dashboard as PDF'}
         onClick={() =>
           exportToPDF(
             dashboardRef.current,
@@ -99,20 +101,22 @@ export function PDFExport({ dashboardRef, chartsRef, fileName }: PDFExportProps)
             () => setExportingFull(false)
           )
         }
-        className="h-9 gap-2 border-border bg-muted text-muted-foreground hover:text-foreground"
+        className="gap-2"
       >
         {exportingFull ? (
           <Loader2 className="size-4 animate-spin" />
         ) : (
           <Download className="size-4" />
         )}
-        {exportingFull ? 'Exporting...' : 'Export Full Dashboard'}
+        <span className="hidden xl:inline">{exportingFull ? 'Exporting…' : 'Export report'}</span>
       </Button>
 
       <Button
         variant="outline"
         size="sm"
         disabled={exportingCharts}
+        aria-busy={exportingCharts}
+        aria-label={exportingCharts ? 'Exporting charts' : 'Export charts as PDF'}
         onClick={() =>
           exportToPDF(
             chartsRef.current,
@@ -121,14 +125,14 @@ export function PDFExport({ dashboardRef, chartsRef, fileName }: PDFExportProps)
             () => setExportingCharts(false)
           )
         }
-        className="h-9 gap-2 border-border bg-muted text-muted-foreground hover:text-foreground"
+        className="gap-2"
       >
         {exportingCharts ? (
           <Loader2 className="size-4 animate-spin" />
         ) : (
           <FileDown className="size-4" />
         )}
-        {exportingCharts ? 'Exporting...' : 'Export Charts Only'}
+        <span className="hidden 2xl:inline">{exportingCharts ? 'Exporting…' : 'Charts only'}</span>
       </Button>
     </div>
   )

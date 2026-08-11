@@ -1,6 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import {
   Bot,
   MessageCircle,
@@ -9,7 +11,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { AspenRow } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { cn, toFiniteNumber } from '@/lib/utils'
 
 interface ChatAssistantProps {
   data: AspenRow[]
@@ -20,12 +22,13 @@ interface ChatMessage {
   id: string
   role: 'assistant' | 'user'
   content: string
+  loading?: boolean
 }
 
 function average(rows: AspenRow[], key: keyof AspenRow) {
-  if (!rows.length) return 0
-  const total = rows.reduce((acc, row) => acc + Number(row[key] ?? 0), 0)
-  return total / rows.length
+  const values = rows.map((row) => toFiniteNumber(row[key])).filter((value): value is number => value !== null)
+  if (!values.length) return 0
+  return values.reduce((total, value) => total + value, 0) / values.length
 }
 
 function computeDatasetSummary(data: AspenRow[], fileName: string | null) {
@@ -47,7 +50,18 @@ function computeDatasetSummary(data: AspenRow[], fileName: string | null) {
     }
   }
 
-  const bestYieldRun = data.reduce((best, row) => (row.Yield > best.Yield ? row : best), data[0])
+  const numericValues = (key: keyof AspenRow) =>
+    data.map((row) => toFiniteNumber(row[key])).filter((value): value is number => value !== null)
+
+  const yields = numericValues('Yield')
+  const conversions = numericValues('Conversion')
+  const energy = numericValues('Energy')
+  const temperatures = numericValues('Temperature')
+  const pressures = numericValues('Pressure')
+
+  const bestYieldRun = data.reduce((best, row) =>
+    (toFiniteNumber(row.Yield) ?? Number.NEGATIVE_INFINITY) > (toFiniteNumber(best.Yield) ?? Number.NEGATIVE_INFINITY) ? row : best
+  , data[0])
 
   const columns = Object.keys(data[0] ?? {})
 
@@ -58,11 +72,11 @@ function computeDatasetSummary(data: AspenRow[], fileName: string | null) {
     avgConversion: average(data, 'Conversion'),
     avgEnergy: average(data, 'Energy'),
     avgFeedRate: average(data, 'Feed_Rate'),
-    maxYield: Math.max(...data.map((row) => row.Yield)),
-    maxConversion: Math.max(...data.map((row) => row.Conversion)),
-    minEnergy: Math.min(...data.map((row) => row.Energy)),
-    temperatureRange: `${Math.min(...data.map((row) => row.Temperature))} - ${Math.max(...data.map((row) => row.Temperature))} °C`,
-    pressureRange: `${Math.min(...data.map((row) => row.Pressure))} - ${Math.max(...data.map((row) => row.Pressure))} bar`,
+    maxYield: yields.length ? Math.max(...yields) : 0,
+    maxConversion: conversions.length ? Math.max(...conversions) : 0,
+    minEnergy: energy.length ? Math.min(...energy) : 0,
+    temperatureRange: temperatures.length ? `${Math.min(...temperatures)} - ${Math.max(...temperatures)} °C` : 'N/A',
+    pressureRange: pressures.length ? `${Math.min(...pressures)} - ${Math.max(...pressures)} bar` : 'N/A',
     bestYieldRun,
     fileName,
   }
@@ -81,7 +95,48 @@ export function ChatAssistant({ data, fileName }: ChatAssistantProps) {
   ])
   const [input, setInput] = useState('')
 
+  const chatContainerRef = useRef<HTMLDivElement | null>(null)
+
   const summary = useMemo(() => computeDatasetSummary(data, fileName), [data, fileName])
+
+  function scrollToBottom() {
+    if (!chatContainerRef.current) return
+
+    const element = chatContainerRef.current
+    element.scrollTo({
+      top: element.scrollHeight,
+      behavior: 'smooth',
+    })
+  }
+
+  useEffect(() => {
+    if (isOpen) {
+      const frame = window.requestAnimationFrame(scrollToBottom)
+      return () => window.cancelAnimationFrame(frame)
+    }
+  }, [isOpen, messages])
+
+  useEffect(() => {
+    setMessages((current) => current.map((message) =>
+      message.id === 'welcome'
+        ? {
+            ...message,
+            content: data.length
+              ? `I’m reviewing ${fileName ?? 'your dataset'} with ${data.length.toLocaleString()} loaded runs. Ask about the data, KPIs, charts, insights, or operating points.`
+              : 'Upload a CSV file to begin a file-aware conversation.',
+          }
+        : message
+    ))
+  }, [data.length, fileName])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsOpen(false)
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [isOpen])
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
@@ -100,6 +155,7 @@ export function ChatAssistant({ data, fileName }: ChatAssistantProps) {
       id: streamingAssistantId,
       role: 'assistant',
       content: '',
+      loading: true,
     }
 
     const pendingMessages = [...messages, userMessage]
@@ -130,7 +186,7 @@ export function ChatAssistant({ data, fileName }: ChatAssistantProps) {
         setMessages((current) =>
           current.map((message) =>
             message.id === streamingAssistantId
-              ? { ...message, content: errorText }
+              ? { ...message, content: errorText, loading: false }
               : message
           )
         )
@@ -141,7 +197,7 @@ export function ChatAssistant({ data, fileName }: ChatAssistantProps) {
         setMessages((current) =>
           current.map((message) =>
             message.id === streamingAssistantId
-              ? { ...message, content: 'The model returned an empty response stream.' }
+              ? { ...message, content: 'The model returned an empty response stream.', loading: false }
               : message
           )
         )
@@ -182,7 +238,7 @@ export function ChatAssistant({ data, fileName }: ChatAssistantProps) {
               setMessages((current) =>
                 current.map((message) =>
                   message.id === streamingAssistantId
-                    ? { ...message, content: `${message.content}${delta}` }
+                    ? { ...message, content: `${message.content}${delta}`, loading: false }
                     : message
                 )
               )
@@ -214,7 +270,7 @@ export function ChatAssistant({ data, fileName }: ChatAssistantProps) {
               setMessages((current) =>
                 current.map((message) =>
                   message.id === streamingAssistantId
-                    ? { ...message, content: `${message.content}${delta}` }
+                    ? { ...message, content: `${message.content}${delta}`, loading: false }
                     : message
                 )
               )
@@ -229,7 +285,7 @@ export function ChatAssistant({ data, fileName }: ChatAssistantProps) {
       setMessages((current) =>
         current.map((message) =>
           message.id === streamingAssistantId
-            ? { ...message, content: `I ran into a stream/network error: ${errorText}` }
+            ? { ...message, content: `I ran into a stream/network error: ${errorText}`, loading: false }
             : message
         )
       )
@@ -238,64 +294,87 @@ export function ChatAssistant({ data, fileName }: ChatAssistantProps) {
 
   return (
     <>
-      <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-2">
+      {isOpen && <button type="button" aria-label="Close analyst panel" className="fixed inset-0 z-40 bg-black/45 backdrop-blur-[2px] sm:hidden" onClick={() => setIsOpen(false)} />}
+      <div className="fixed bottom-4 right-4 z-50 sm:bottom-6 sm:right-6">
         {isOpen && (
-          <section className="w-[min(92vw,390px)] overflow-hidden rounded-2xl border border-border bg-background shadow-2xl shadow-black/30">
-            <div className="flex items-center justify-between border-b border-border bg-card px-4 py-3">
+          <section id="analyst-panel" aria-label="Aspen analyst chat" className="surface-panel fixed inset-x-3 bottom-20 top-20 flex flex-col overflow-hidden rounded-2xl bg-background shadow-2xl shadow-black/40 sm:inset-auto sm:bottom-20 sm:right-6 sm:h-[min(720px,calc(100vh-7rem))] sm:w-[410px]">
+            <div className="flex items-center justify-between border-b border-border/80 bg-card/95 px-4 py-3.5">
               <div className="flex items-center gap-2">
-                <div className="flex size-8 items-center justify-center rounded-full border border-primary/30 bg-primary/10">
-                  <Bot className="size-4 text-primary" />
+                <div className="flex size-9 items-center justify-center rounded-xl border border-primary/25 bg-primary/10">
+                  <Bot className="size-4.5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-foreground">Aspen Analyst</p>
-                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                    {fileName ? 'File Context' : 'No file loaded'}
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-foreground">Aspen analyst</p>
+                    <span className="size-1.5 rounded-full bg-emerald-400" />
+                  </div>
+                  <p className="mt-0.5 max-w-[220px] truncate text-[11px] text-muted-foreground">
+                    {fileName ?? 'No dataset loaded'}
                   </p>
                 </div>
               </div>
 
-              <Button variant="ghost" size="icon-sm" onClick={() => setIsOpen(false)}>
+              <Button variant="ghost" size="icon-sm" aria-label="Close analyst" onClick={() => setIsOpen(false)}>
                 <X className="size-4" />
               </Button>
             </div>
 
-            <div className="max-h-[360px] min-h-[260px] overflow-y-auto bg-background px-4 py-3">
-              <div className="flex flex-col gap-3">
+            <div ref={chatContainerRef} className="min-h-0 flex-1 overflow-y-auto bg-background px-4 py-5">
+              <div className="flex flex-col gap-4">
                 {messages.map((message) => (
-                  <div key={message.id} className={cn('flex', message.role === 'user' ? 'justify-end' : 'justify-start')}>
+                  <div key={message.id} className={cn('flex items-end gap-2', message.role === 'user' ? 'justify-end' : 'justify-start')}>
+                    {message.role === 'assistant' && (
+                      <div className="mb-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-primary">
+                        <Bot className="size-3.5" />
+                      </div>
+                    )}
                     <div
                       className={cn(
-                        'max-w-[88%] rounded-2xl px-3 py-2 text-xs leading-5',
+                        'max-w-[84%] rounded-2xl px-3.5 py-2.5 text-xs leading-5 shadow-sm',
                         message.role === 'user'
-                          ? 'bg-primary text-primary-foreground rounded-br-md'
-                          : 'border border-border bg-muted text-foreground rounded-bl-md'
+                          ? 'rounded-br-md bg-primary text-primary-foreground shadow-primary/10'
+                          : 'rounded-bl-md border border-border bg-card text-foreground'
                       )}
                     >
-                      {message.content}
+                      {message.role === 'assistant' ? (
+                        message.loading ? (
+                          <div className="chat-assistant-loading-wrap" aria-label="Assistant is typing">
+                            <span className="chat-assistant-loading-dot" />
+                            <span className="chat-assistant-loading-dot" />
+                            <span className="chat-assistant-loading-dot" />
+                          </div>
+                        ) : (
+                          <div className="markdown-render markdown-render-assistant prose prose-invert prose-sm max-w-none">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content || '...'}</ReactMarkdown>
+                          </div>
+                        )
+                      ) : (
+                        <span>{message.content}</span>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="border-t border-border bg-card p-3">
+            <form onSubmit={handleSubmit} className="border-t border-border/80 bg-card/95 p-3.5">
               <div className="flex items-center gap-2">
                 <input
                   value={input}
                   onChange={(event) => setInput(event.target.value)}
                   placeholder={data.length ? 'Ask about the uploaded file...' : 'Upload data to start'}
                   disabled={!data.length}
-                  className="h-9 flex-1 rounded-xl border border-border bg-background px-3 text-xs outline-none placeholder:text-muted-foreground focus:border-primary"
+                  aria-label="Ask the Aspen analyst"
+                  className="h-11 min-w-0 flex-1 rounded-xl border border-input bg-background/80 px-3.5 text-xs outline-none transition-[border-color,box-shadow] placeholder:text-muted-foreground/80 focus:border-primary focus:ring-3 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-60"
                 />
-                <Button type="submit" size="sm" disabled={!data.length || !input.trim()} className="gap-1.5">
-                  <Send className="size-3.5" />
-                  Send
+                <Button type="submit" size="icon" disabled={!data.length || !input.trim()} aria-label="Send question">
+                  <Send className="size-4" />
                 </Button>
               </div>
 
-              <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
-                <span>{data.length ? `${summary.rowCount.toLocaleString()} runs` : 'Awaiting upload'}</span>
-                <span className="font-mono">context: {fileName ?? 'No file'}</span>
+              <div className="mt-2.5 flex items-center justify-between gap-2 px-1 text-[10px] text-muted-foreground">
+                <span>{data.length ? `${summary.rowCount.toLocaleString()} runs in context` : 'Awaiting dataset upload'}</span>
+                <span>Esc to close</span>
               </div>
             </form>
           </section>
@@ -305,12 +384,16 @@ export function ChatAssistant({ data, fileName }: ChatAssistantProps) {
           type="button"
           onClick={() => setIsOpen((current) => !current)}
           className={cn(
-            'flex size-14 items-center justify-center rounded-full border border-primary/30 bg-primary text-primary-foreground shadow-lg transition-all hover:scale-105 hover:bg-primary/90',
-            !data.length && 'cursor-not-allowed opacity-80'
+            'flex h-12 items-center justify-center gap-2 rounded-full border border-primary/30 bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-xl shadow-black/25 transition-[background-color,transform,box-shadow] hover:-translate-y-0.5 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/25',
+            isOpen && 'bg-secondary text-foreground hover:bg-secondary/80',
+            !data.length && 'opacity-80'
           )}
-          aria-label="Open Aspen analyst chat"
+          aria-label={isOpen ? 'Close Aspen analyst chat' : 'Open Aspen analyst chat'}
+          aria-expanded={isOpen}
+          aria-controls="analyst-panel"
         >
-          <MessageCircle className="size-6" />
+          {isOpen ? <X className="size-5" /> : <MessageCircle className="size-5" />}
+          <span className="hidden sm:inline">{isOpen ? 'Close' : 'Ask analyst'}</span>
         </button>
       </div>
     </>

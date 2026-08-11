@@ -2,18 +2,21 @@
 
 import { useMemo } from 'react'
 import {
-  TrendingUp,
-  Zap,
-  Thermometer,
+  Activity,
   Gauge,
-  FlaskConical,
+  TrendingUp,
   Star,
+  Target,
+  Thermometer,
+  Zap,
 } from 'lucide-react'
 import type { AspenRow, KPIData } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { cn, toFiniteNumber } from '@/lib/utils'
+import { generateKPIs, type DatasetSchema } from '@/lib/analysis'
 
 interface KPICardsProps {
   data: AspenRow[]
+  schema: DatasetSchema
 }
 
 function computeKPIs(data: AspenRow[]): KPIData {
@@ -33,17 +36,17 @@ function computeKPIs(data: AspenRow[]): KPIData {
   let minEnergyRow = data[0]
 
   for (const row of data) {
-    if (row.Yield > maxYieldRow.Yield) maxYieldRow = row
-    if (row.Conversion > maxConvRow.Conversion) maxConvRow = row
-    if (row.Energy < minEnergyRow.Energy) minEnergyRow = row
+    if ((toFiniteNumber(row.Yield) ?? Number.NEGATIVE_INFINITY) > (toFiniteNumber(maxYieldRow.Yield) ?? Number.NEGATIVE_INFINITY)) maxYieldRow = row
+    if ((toFiniteNumber(row.Conversion) ?? Number.NEGATIVE_INFINITY) > (toFiniteNumber(maxConvRow.Conversion) ?? Number.NEGATIVE_INFINITY)) maxConvRow = row
+    if ((toFiniteNumber(row.Energy) ?? Number.POSITIVE_INFINITY) < (toFiniteNumber(minEnergyRow.Energy) ?? Number.POSITIVE_INFINITY)) minEnergyRow = row
   }
 
   return {
-    maxYield: maxYieldRow.Yield,
-    maxConversion: maxConvRow.Conversion,
-    bestTemperature: maxYieldRow.Temperature,
-    bestPressure: maxYieldRow.Pressure,
-    minEnergy: minEnergyRow.Energy,
+    maxYield: toFiniteNumber(maxYieldRow.Yield) ?? 0,
+    maxConversion: toFiniteNumber(maxConvRow.Conversion) ?? 0,
+    bestTemperature: toFiniteNumber(maxYieldRow.Temperature) ?? 0,
+    bestPressure: toFiniteNumber(maxYieldRow.Pressure) ?? 0,
+    minEnergy: toFiniteNumber(minEnergyRow.Energy) ?? 0,
     bestOperatingPoint: maxYieldRow,
   }
 }
@@ -59,44 +62,44 @@ interface KPICardProps {
 }
 
 const accentStyles: Record<string, string> = {
-  teal: 'border-[oklch(0.72_0.19_200)/30] bg-[oklch(0.72_0.19_200)/8]',
-  blue: 'border-[oklch(0.65_0.2_220)/30] bg-[oklch(0.65_0.2_220)/8]',
-  green: 'border-[oklch(0.78_0.16_140)/30] bg-[oklch(0.78_0.16_140)/8]',
-  amber: 'border-[oklch(0.75_0.18_60)/30] bg-[oklch(0.75_0.18_60)/8]',
-  red: 'border-[oklch(0.65_0.22_25)/30] bg-[oklch(0.65_0.22_25)/8]',
-  violet: 'border-[oklch(0.70_0.18_290)/30] bg-[oklch(0.70_0.18_290)/8]',
+  teal: 'hover:border-accent/35',
+  blue: 'hover:border-primary/40',
+  green: 'hover:border-emerald-400/35',
+  amber: 'hover:border-amber-400/35',
+  red: 'hover:border-rose-400/35',
+  violet: 'hover:border-violet-400/35',
 }
 
 const iconAccentStyles: Record<string, string> = {
-  teal: 'text-[oklch(0.72_0.19_200)] bg-[oklch(0.72_0.19_200)/15]',
-  blue: 'text-[oklch(0.65_0.2_220)] bg-[oklch(0.65_0.2_220)/15]',
-  green: 'text-[oklch(0.78_0.16_140)] bg-[oklch(0.78_0.16_140)/15]',
-  amber: 'text-[oklch(0.75_0.18_60)] bg-[oklch(0.75_0.18_60)/15]',
-  red: 'text-[oklch(0.65_0.22_25)] bg-[oklch(0.65_0.22_25)/15]',
-  violet: 'text-[oklch(0.70_0.18_290)] bg-[oklch(0.70_0.18_290)/15]',
+  teal: 'text-accent bg-accent/10 border-accent/20',
+  blue: 'text-primary bg-primary/10 border-primary/20',
+  green: 'text-emerald-300 bg-emerald-400/10 border-emerald-400/20',
+  amber: 'text-amber-300 bg-amber-400/10 border-amber-400/20',
+  red: 'text-rose-300 bg-rose-400/10 border-rose-400/20',
+  violet: 'text-violet-300 bg-violet-400/10 border-violet-400/20',
 }
 
 function KPICard({ label, value, unit, sublabel, icon, accent = 'teal', wide }: KPICardProps) {
   return (
     <div
       className={cn(
-        'flex flex-col gap-3 rounded-xl border p-5 transition-all duration-200 hover:brightness-110',
+        'surface-panel group flex min-h-40 flex-col justify-between gap-5 rounded-2xl p-5 transition-[border-color,transform] duration-200 hover:-translate-y-0.5',
         accentStyles[accent],
         wide && 'col-span-2'
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">{label}</p>
-        <div className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg', iconAccentStyles[accent])}>
+      <div className="flex items-start justify-between gap-3">
+        <p className="max-w-[75%] text-xs font-semibold leading-5 text-muted-foreground">{label}</p>
+        <div className={cn('flex size-9 shrink-0 items-center justify-center rounded-xl border', iconAccentStyles[accent])}>
           {icon}
         </div>
       </div>
       <div>
         <div className="flex items-baseline gap-1.5">
-          <span className="text-3xl font-bold tabular-nums text-foreground">{value}</span>
+          <span className="text-[1.75rem] font-bold tracking-[-0.035em] tabular-nums text-foreground">{value}</span>
           {unit && <span className="text-sm font-medium text-muted-foreground">{unit}</span>}
         </div>
-        {sublabel && <p className="mt-1 text-xs text-muted-foreground">{sublabel}</p>}
+        {sublabel && <p className="mt-1.5 line-clamp-2 text-[11px] leading-4 text-muted-foreground">{sublabel}</p>}
       </div>
     </div>
   )
@@ -107,35 +110,39 @@ interface BestPointCardProps {
 }
 
 function BestPointCard({ point }: BestPointCardProps) {
+  const formatNumber = (value: unknown, digits: number) => toFiniteNumber(value)?.toFixed(digits) ?? '—'
+
   const fields: { label: string; value: string; unit: string }[] = [
-    { label: 'Temperature', value: point.Temperature.toFixed(1), unit: '°C' },
-    { label: 'Pressure', value: point.Pressure.toFixed(2), unit: 'bar' },
-    { label: 'Feed Rate', value: point.Feed_Rate.toFixed(2), unit: 'kmol/h' },
-    { label: 'Yield', value: point.Yield.toFixed(2), unit: '%' },
-    { label: 'Conversion', value: point.Conversion.toFixed(2), unit: '%' },
-    { label: 'Energy', value: point.Energy.toFixed(2), unit: 'GJ/h' },
+    { label: 'Temperature', value: formatNumber(point.Temperature, 1), unit: '°C' },
+    { label: 'Pressure', value: formatNumber(point.Pressure, 2), unit: 'bar' },
+    { label: 'Feed Rate', value: formatNumber(point.Feed_Rate, 2), unit: 'kmol/h' },
+    { label: 'Yield', value: formatNumber(point.Yield, 2), unit: '%' },
+    { label: 'Conversion', value: formatNumber(point.Conversion, 2), unit: '%' },
+    { label: 'Energy', value: formatNumber(point.Energy, 2), unit: 'GJ/h' },
   ]
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-[oklch(0.75_0.18_60)/30] bg-[oklch(0.75_0.18_60)/6] p-5 col-span-2 md:col-span-3 lg:col-span-2">
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Best Operating Point</p>
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[oklch(0.75_0.18_60)/15] text-[oklch(0.75_0.18_60)]">
-          <Star className="size-4" />
+    <div className="surface-panel col-span-2 grid gap-6 rounded-2xl border-amber-400/20 p-5 sm:p-6 md:col-span-3 xl:col-span-5 xl:grid-cols-[260px_1fr] xl:items-center">
+      <div>
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-amber-400/20 bg-amber-400/10 text-amber-300">
+            <Star className="size-4 fill-current" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">Best operating point</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Highest observed yield</p>
+          </div>
         </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <span className="rounded-md border border-[oklch(0.75_0.18_60)/40] bg-[oklch(0.75_0.18_60)/20] px-2 py-0.5 font-mono text-xs text-[oklch(0.75_0.18_60)]">
+        <span className="mt-4 inline-flex rounded-lg border border-amber-400/25 bg-amber-400/8 px-2.5 py-1 font-mono text-xs font-semibold text-amber-300">
           {point.Run_ID}
         </span>
-        <span className="text-sm text-muted-foreground">Highest Yield Run</span>
       </div>
-      <div className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         {fields.map((f) => (
-          <div key={f.label}>
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{f.label}</p>
-            <p className="font-mono text-sm font-semibold text-foreground">
-              {f.value} <span className="text-xs font-normal text-muted-foreground">{f.unit}</span>
+          <div key={f.label} className="rounded-xl border border-border/80 bg-background/45 p-3">
+            <p className="text-[10px] font-medium text-muted-foreground">{f.label}</p>
+            <p className="mt-1.5 font-mono text-sm font-semibold tabular-nums text-foreground">
+              {f.value} <span className="text-[10px] font-normal text-muted-foreground">{f.unit}</span>
             </p>
           </div>
         ))}
@@ -144,57 +151,41 @@ function BestPointCard({ point }: BestPointCardProps) {
   )
 }
 
-export function KPICards({ data }: KPICardsProps) {
+export function KPICards({ data, schema }: KPICardsProps) {
   const kpis = useMemo(() => computeKPIs(data), [data])
+  const dynamicKpis = useMemo(() => generateKPIs(data, schema), [data, schema])
 
   if (!data.length) return null
 
+  const kpiCards = [...dynamicKpis].slice(0, 5)
+  const iconForKpi = (label: string) => {
+    if (/energy/i.test(label)) return <Zap className="size-4" />
+    if (/temperature/i.test(label)) return <Thermometer className="size-4" />
+    if (/pressure/i.test(label)) return <Gauge className="size-4" />
+    if (/conversion|yield|efficiency/i.test(label)) return <Target className="size-4" />
+    if (/average/i.test(label)) return <Activity className="size-4" />
+    return <TrendingUp className="size-4" />
+  }
+
   return (
     <section aria-label="Key Performance Indicators">
-      <h2 className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-        Key Performance Indicators
-      </h2>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-        <KPICard
-          label="Max Yield"
-          value={kpis.maxYield.toFixed(2)}
-          unit="%"
-          sublabel="Highest yield across all runs"
-          icon={<TrendingUp className="size-4" />}
-          accent="teal"
-        />
-        <KPICard
-          label="Max Conversion"
-          value={kpis.maxConversion.toFixed(2)}
-          unit="%"
-          sublabel="Peak reactant conversion"
-          icon={<FlaskConical className="size-4" />}
-          accent="blue"
-        />
-        <KPICard
-          label="Best Temperature"
-          value={kpis.bestTemperature.toFixed(1)}
-          unit="°C"
-          sublabel="Temperature at max yield"
-          icon={<Thermometer className="size-4" />}
-          accent="red"
-        />
-        <KPICard
-          label="Best Pressure"
-          value={kpis.bestPressure.toFixed(2)}
-          unit="bar"
-          sublabel="Pressure at max yield"
-          icon={<Gauge className="size-4" />}
-          accent="violet"
-        />
-        <KPICard
-          label="Min Energy"
-          value={kpis.minEnergy.toFixed(2)}
-          unit="GJ/h"
-          sublabel="Lowest energy consumption"
-          icon={<Zap className="size-4" />}
-          accent="green"
-        />
+      <div className="mb-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Performance overview</p>
+        <h2 className="mt-1.5 text-2xl font-bold tracking-tight text-foreground">Key process indicators</h2>
+        <p className="mt-1.5 text-sm text-muted-foreground">The most decision-useful values detected in the current simulation set.</p>
+      </div>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+        {kpiCards.map((kpi, index) => (
+          <KPICard
+            key={`${kpi.name}-${index}`}
+            label={kpi.label}
+            value={typeof kpi.value === 'number' ? kpi.value.toFixed(2) : String(kpi.value)}
+            unit={kpi.unit}
+            sublabel={kpi.description}
+            icon={iconForKpi(kpi.label)}
+            accent={index % 5 === 0 ? 'teal' : index % 5 === 1 ? 'blue' : index % 5 === 2 ? 'red' : index % 5 === 3 ? 'green' : 'violet'}
+          />
+        ))}
         {kpis.bestOperatingPoint && (
           <BestPointCard point={kpis.bestOperatingPoint} />
         )}
