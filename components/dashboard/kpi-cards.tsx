@@ -11,6 +11,7 @@ import {
   Zap,
 } from 'lucide-react'
 import type { AspenRow, KPIData } from '@/lib/types'
+import type { ChatKpiSpec } from '@/lib/chat'
 import { cn, toFiniteNumber } from '@/lib/utils'
 import { generateKPIs, type DatasetSchema } from '@/lib/analysis'
 
@@ -59,6 +60,7 @@ interface KPICardProps {
   icon: React.ReactNode
   accent?: 'teal' | 'blue' | 'green' | 'amber' | 'red' | 'violet'
   wide?: boolean
+  compact?: boolean
 }
 
 const accentStyles: Record<string, string> = {
@@ -79,11 +81,12 @@ const iconAccentStyles: Record<string, string> = {
   violet: 'text-violet-300 bg-violet-400/10 border-violet-400/20',
 }
 
-function KPICard({ label, value, unit, sublabel, icon, accent = 'teal', wide }: KPICardProps) {
+function KPICard({ label, value, unit, sublabel, icon, accent = 'teal', wide, compact }: KPICardProps) {
   return (
     <div
       className={cn(
         'surface-panel group flex min-h-40 flex-col justify-between gap-5 rounded-2xl p-5 transition-[border-color,transform] duration-200 hover:-translate-y-0.5',
+        compact && 'min-h-28 gap-3 rounded-xl p-3.5',
         accentStyles[accent],
         wide && 'col-span-2'
       )}
@@ -96,11 +99,31 @@ function KPICard({ label, value, unit, sublabel, icon, accent = 'teal', wide }: 
       </div>
       <div>
         <div className="flex items-baseline gap-1.5">
-          <span className="text-[1.75rem] font-bold tracking-[-0.035em] tabular-nums text-foreground">{value}</span>
+          <span className={cn('text-[1.75rem] font-bold tracking-[-0.035em] tabular-nums text-foreground', compact && 'text-xl')}>{value}</span>
           {unit && <span className="text-sm font-medium text-muted-foreground">{unit}</span>}
         </div>
         {sublabel && <p className="mt-1.5 line-clamp-2 text-[11px] leading-4 text-muted-foreground">{sublabel}</p>}
       </div>
+    </div>
+  )
+}
+
+export function InlineKPICards({ kpis }: { kpis: ChatKpiSpec[] }) {
+  if (!kpis.length) return null
+
+  return (
+    <div className="grid grid-cols-1 gap-2 min-[520px]:grid-cols-2">
+      {kpis.map((kpi, index) => (
+        <KPICard
+          key={`${kpi.label}-${index}`}
+          label={kpi.label}
+          value={typeof kpi.value === 'number' ? kpi.value.toLocaleString(undefined, { maximumFractionDigits: 4 }) : kpi.value}
+          sublabel={kpi.column ? `Dataset column: ${kpi.column}` : undefined}
+          icon={<TrendingUp className="size-4" />}
+          accent={index % 2 === 0 ? 'teal' : 'blue'}
+          compact
+        />
+      ))}
     </div>
   )
 }

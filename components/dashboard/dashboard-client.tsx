@@ -160,7 +160,7 @@ export function DashboardClient() {
         </footer>
       </main>
 
-      <ChatAssistant data={data} fileName={fileName} />
+      <ChatAssistant data={data} schema={schema} fileName={fileName} />
     </div>
   )
 }

@@ -34,6 +34,78 @@ interface DataTableProps {
   data: AspenRow[]
 }
 
+function DataCell({ value }: { value: unknown }) {
+  if (value === null || typeof value === 'undefined' || value === '') {
+    return <span className="text-muted-foreground/60">—</span>
+  }
+
+  return typeof value === 'number' ? (
+    <span className="font-mono text-[13px] font-medium tabular-nums text-foreground">{value.toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
+  ) : (
+    <span className="text-[13px] text-foreground/90">{String(value)}</span>
+  )
+}
+
+interface InlineDataTableProps {
+  data: AspenRow[]
+  columns: string[]
+  title?: string
+}
+
+export function InlineDataTable({ data, columns, title }: InlineDataTableProps) {
+  const [pageIndex, setPageIndex] = useState(0)
+  const pageSize = 5
+  const pageCount = Math.max(1, Math.ceil(data.length / pageSize))
+  const safePageIndex = Math.min(pageIndex, pageCount - 1)
+  const visibleRows = data.slice(safePageIndex * pageSize, (safePageIndex + 1) * pageSize)
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-background/45">
+      <div className="flex items-center justify-between gap-3 border-b border-border/80 px-3 py-2.5">
+        <p className="truncate text-xs font-semibold text-foreground">{title || 'Dataset rows'}</p>
+        <span className="shrink-0 text-[10px] text-muted-foreground">{data.length.toLocaleString()} row{data.length === 1 ? '' : 's'}</span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-max border-collapse text-xs">
+          <thead className="bg-secondary/90">
+            <tr className="border-b border-border/90">
+              {columns.map((column) => (
+                <th key={column} className="whitespace-nowrap px-3 py-2 text-left text-[11px] font-semibold text-muted-foreground">{column}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {visibleRows.length ? visibleRows.map((row, rowIndex) => (
+              <tr key={rowIndex} className="border-b border-border/60 last:border-b-0 odd:bg-background/10">
+                {columns.map((column) => (
+                  <td key={column} className="max-w-64 whitespace-nowrap px-3 py-2"><DataCell value={row[column]} /></td>
+                ))}
+              </tr>
+            )) : (
+              <tr>
+                <td colSpan={columns.length} className="h-20 px-3 text-center text-xs text-muted-foreground">No matching rows.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      {pageCount > 1 && (
+        <div className="flex items-center justify-between border-t border-border/80 px-3 py-2 text-[10px] text-muted-foreground">
+          <span>Page {safePageIndex + 1} of {pageCount}</span>
+          <div className="flex gap-1">
+            <Button variant="outline" size="icon-sm" aria-label="Previous table page" disabled={safePageIndex === 0} onClick={() => setPageIndex((current) => Math.max(0, current - 1))}>
+              <ChevronLeft className="size-3.5" />
+            </Button>
+            <Button variant="outline" size="icon-sm" aria-label="Next table page" disabled={safePageIndex >= pageCount - 1} onClick={() => setPageIndex((current) => Math.min(pageCount - 1, current + 1))}>
+              <ChevronRight className="size-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function downloadCSV(data: AspenRow[], filename: string) {
   if (!data.length) return
   
@@ -89,15 +161,7 @@ export function DataTable({ data }: DataTableProps) {
         </Button>
       ),
       cell: ({ getValue }) => {
-        const val = getValue()
-        if (val === null || typeof val === 'undefined' || val === '') {
-          return <span className="text-muted-foreground/60">—</span>
-        }
-        return typeof val === 'number' ? (
-          <span className="font-mono text-[13px] font-medium tabular-nums text-foreground">{val.toFixed(2)}</span>
-        ) : (
-          <span className="text-[13px] text-foreground/90">{String(val)}</span>
-        )
+        return <DataCell value={getValue()} />
       },
     }))
   }, [data])

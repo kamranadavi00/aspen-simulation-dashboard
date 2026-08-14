@@ -85,13 +85,68 @@ interface HeatmapProps {
   data: AspenRow[]
 }
 
-type ChartType = 'line' | 'bar' | 'scatter' | 'area'
+export type ChartType = 'line' | 'bar' | 'scatter' | 'area'
 
 interface BuilderChartConfig {
   id: string
   x: string
   y: string
   type: ChartType
+}
+
+interface DatasetChartProps {
+  data: AspenRow[]
+  x: string
+  y: string
+  type: ChartType
+  className?: string
+}
+
+export function DatasetChart({ data, x, y, type, className }: DatasetChartProps) {
+  const chartRows = useMemo(() => data.map((row) => ({ x: row[x], y: row[y] })), [data, x, y])
+
+  const chart = type === 'line' ? (
+    <LineChart data={chartRows} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+      <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="oklch(0.255 0.03 255)" />
+      <XAxis dataKey="x" name={x} {...axisStyle} />
+      <YAxis dataKey="y" name={y} {...axisStyle} />
+      <Tooltip {...tooltipStyle} />
+      <Line type="monotone" dataKey="y" name={y} stroke={COLORS.teal} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: COLORS.teal }} />
+    </LineChart>
+  ) : type === 'bar' ? (
+    <BarChart data={chartRows} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+      <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="oklch(0.255 0.03 255)" />
+      <XAxis dataKey="x" name={x} {...axisStyle} />
+      <YAxis dataKey="y" name={y} {...axisStyle} />
+      <Tooltip {...tooltipStyle} />
+      <Bar dataKey="y" name={y} fill={COLORS.green} radius={[4, 4, 0, 0]} />
+    </BarChart>
+  ) : type === 'area' ? (
+    <AreaChart data={chartRows} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+      <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="oklch(0.255 0.03 255)" />
+      <XAxis dataKey="x" name={x} {...axisStyle} />
+      <YAxis dataKey="y" name={y} {...axisStyle} />
+      <Tooltip {...tooltipStyle} />
+      <Area type="monotone" dataKey="y" name={y} stroke={COLORS.blue} fill={COLORS.blue} fillOpacity={0.14} strokeWidth={2} />
+    </AreaChart>
+  ) : (
+    <ScatterChart data={chartRows} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+      <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.255 0.03 255)" />
+      <XAxis dataKey="x" name={x} {...axisStyle} />
+      <YAxis dataKey="y" name={y} {...axisStyle} />
+      <ZAxis range={[40, 40]} />
+      <Tooltip {...tooltipStyle} />
+      <Scatter data={chartRows} name={`${y} by ${x}`} fill={COLORS.teal} />
+    </ScatterChart>
+  )
+
+  return (
+    <div className={cn('h-full min-h-0 w-full', className)}>
+      <ResponsiveContainer width="100%" height="100%">
+        {chart}
+      </ResponsiveContainer>
+    </div>
+  )
 }
 
 function Heatmap({ data }: HeatmapProps) {
@@ -368,67 +423,11 @@ export function Charts({ data, schema }: ChartsProps) {
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         {chartConfigs.map((config) => {
-          const configRows = data.map((row) => ({
-            x: row[config.x],
-            y: row[config.y],
-          }))
-
-          const renderChart = () => {
-            if (config.type === 'line') {
-              return (
-                <LineChart data={configRows} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="oklch(0.255 0.03 255)" />
-                  <XAxis dataKey="x" {...axisStyle} />
-                  <YAxis {...axisStyle} />
-                  <Tooltip {...tooltipStyle} />
-                  <Line type="monotone" dataKey="y" stroke={COLORS.teal} strokeWidth={2} dot={false} activeDot={{ r: 4, fill: COLORS.teal }} />
-                </LineChart>
-              )
-            }
-
-            if (config.type === 'bar') {
-              return (
-                <BarChart data={configRows} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="oklch(0.255 0.03 255)" />
-                  <XAxis dataKey="x" {...axisStyle} />
-                  <YAxis {...axisStyle} />
-                  <Tooltip {...tooltipStyle} />
-                  <Bar dataKey="y" fill={COLORS.green} radius={[4, 4, 0, 0]} />
-                </BarChart>
-              )
-            }
-
-            if (config.type === 'area') {
-              return (
-                <AreaChart data={configRows} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="oklch(0.255 0.03 255)" />
-                  <XAxis dataKey="x" {...axisStyle} />
-                  <YAxis {...axisStyle} />
-                  <Tooltip {...tooltipStyle} />
-                  <Area type="monotone" dataKey="y" stroke={COLORS.blue} fill={COLORS.blue} fillOpacity={0.14} strokeWidth={2} />
-                </AreaChart>
-              )
-            }
-
-            return (
-              <ScatterChart data={configRows} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.255 0.03 255)" />
-                <XAxis dataKey="x" name={config.x} {...axisStyle} />
-                <YAxis dataKey="y" name={config.y} {...axisStyle} />
-                <ZAxis range={[40, 40]} />
-                <Tooltip {...tooltipStyle} />
-                <Scatter data={configRows} fill={COLORS.teal} />
-              </ScatterChart>
-            )
-          }
-
           return (
             <ChartCard key={config.id} title={`${config.y} by ${config.x}`} subtitle={`${config.type.charAt(0).toUpperCase()}${config.type.slice(1)} view · ${data.length.toLocaleString()} runs`}>
               <div className="relative h-full">
                 <button type="button" aria-label={`Remove ${config.x} versus ${config.y} chart`} title="Remove chart" className="absolute right-0 top-0 z-10 flex size-8 items-center justify-center rounded-lg border border-border bg-card/90 text-muted-foreground shadow-sm transition-colors hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => removeChart(config.id)}><X className="size-3.5" /></button>
-                <ResponsiveContainer width="100%" height="100%">
-                  {renderChart()}
-                </ResponsiveContainer>
+                <DatasetChart data={data} x={config.x} y={config.y} type={config.type} />
               </div>
             </ChartCard>
           )
