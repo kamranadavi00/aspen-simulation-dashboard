@@ -170,7 +170,7 @@ ${datasetJson}`
 export async function POST(request: NextRequest) {
   try {
     const apiKey = process.env.OPENROUTER_API_KEY
-    const model = process.env.OPENROUTER_MODEL || 'z-ai/glm-5.2'
+    const model = process.env.OPENROUTER_MODEL || 'z-ai/glm-4.5'
     const openRouterUrl = process.env.OPENROUTER_API_URL || 'https://openrouter.ai/api/v1/chat/completions'
 
     if (!apiKey) {
