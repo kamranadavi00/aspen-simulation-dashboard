@@ -13,6 +13,7 @@ export const metadata: Metadata = {
   description:
     'Interactive process analytics dashboard for Aspen Plus / Aspen HYSYS simulation results. Upload CSV output files to analyze yield, conversion, energy, and optimization data.',
   keywords: ['Aspen Plus', 'HYSYS', 'process engineering', 'chemical engineering', 'analytics', 'simulation'],
+  
 }
 
 export const viewport: Viewport = {
